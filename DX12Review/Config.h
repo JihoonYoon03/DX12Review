@@ -2,6 +2,6 @@
 
 namespace Config
 {
-	constexpr int width		= 640;
-	constexpr int height	= 480;
+	constexpr int fBufferWidth		= 640;
+	constexpr int fBufferHeight	= 480;
 }

@@ -5,6 +5,7 @@
 #include "DX12Review.h"
 
 #include "config.h"
+#include "GameFramework.h"
 
 #define MAX_LOADSTRING 100
 
@@ -12,6 +13,8 @@
 HINSTANCE hInst;                                // 현재 인스턴스입니다.
 WCHAR szTitle[MAX_LOADSTRING];                  // 제목 표시줄 텍스트입니다.
 WCHAR szWindowClass[MAX_LOADSTRING];            // 기본 창 클래스 이름입니다.
+
+CGameFramework gGameFramework;
 
 // 이 코드 모듈에 포함된 함수의 선언을 전달합니다:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -44,15 +47,27 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     MSG msg;
 
-    // 기본 메시지 루프입니다:
-    while (GetMessage(&msg, nullptr, 0, 0))
+    // 게임 프로그램은 처리할 메시지가 없어도 렌더링, 입력처리, 길찾기 작업이 계속 진행되어야 함.
+    // 윈도우 메시지 루프를 PeekMesage() API 함수로 변경하여, 메시지가 있으면 정상적인 윈도우 메시지 처리 과정을 수행하고
+    // 없는 경우에도 FrameAdvance()를 통해 CPU를 계속 사용할 수 있도록 함.
+    while (1)
     {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+        if (::PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
+            if (msg.message == WM_QUIT) break;
+            if (!::TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+            {
+                ::TranslateMessage(&msg);
+                ::DispatchMessage(&msg);
+            }
+        }
+        else
+        {
+            gGameFramework.FrameAdvance();
         }
     }
+    // 메시지 루프 종료
+    gGameFramework.OnDestroy();
 
     return (int) msg.wParam;
 }
@@ -99,20 +114,23 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // 인스턴스 핸들을 전역 변수에 저장합니다.
    DWORD dwStyle = WS_OVERLAPPED | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_BORDER;
-   RECT rc = { 0, 0, Config::width, Config::height };
+   RECT rc = { 0, 0, Config::fBufferWidth, Config::fBufferHeight };
 
    AdjustWindowRect(&rc, dwStyle, FALSE);
 
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, dwStyle,
+   HWND hMainWnd = CreateWindowW(szWindowClass, szTitle, dwStyle,
       CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance, nullptr);
 
-   if (!hWnd)
+   if (!hMainWnd)
    {
       return FALSE;
    }
 
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
+   // 주 윈도우 생성 후 프레임워크 객체 초기화
+   gGameFramework.OnCreate(hInstance, hMainWnd);
+
+   ShowWindow(hMainWnd, nCmdShow);
+   UpdateWindow(hMainWnd);
 
    return TRUE;
 }
@@ -131,36 +149,23 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
-    case WM_COMMAND:
-        {
-            int wmId = LOWORD(wParam);
-            // 메뉴 선택을 구문 분석합니다:
-            switch (wmId)
-            {
-            case IDM_ABOUT:
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-                break;
-            case IDM_EXIT:
-                DestroyWindow(hWnd);
-                break;
-            default:
-                return DefWindowProc(hWnd, message, wParam, lParam);
-            }
-        }
-        break;
-    case WM_PAINT:
-        {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-            // TODO: 여기에 hdc를 사용하는 그리기 코드를 추가합니다...
-            EndPaint(hWnd, &ps);
-        }
+    case WM_SIZE:
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONUP:
+    case WM_RBUTTONDOWN:
+    case WM_RBUTTONUP:
+    case WM_MOUSEMOVE:
+    case WM_KEYDOWN:
+    case WM_KEYUP:
+        // 프로시저는 게임 프레임워크에서 처리할 메시지만 case 문으로 지정한다.
+        // 메시지에 따른 실제 동작은 게임 프레임워크에서 처리한다.
+        gGameFramework.OnProcessingWindowMessage(hWnd, message, wParam, lParam);
         break;
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
     default:
-        return DefWindowProc(hWnd, message, wParam, lParam);
+        return ::DefWindowProc(hWnd, message, wParam, lParam);
     }
     return 0;
 }
