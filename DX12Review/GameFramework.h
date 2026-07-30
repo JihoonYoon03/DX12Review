@@ -34,6 +34,8 @@ public:
 	//CPU와 GPU를 동기화하는 함수
 	void WaitForGpuComplete();
 
+	void ChangeSwapChainState();
+
 	// 윈도우 메시지(키보드, 마우스 입력)를 처리하는 함수
 	void OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	void OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
