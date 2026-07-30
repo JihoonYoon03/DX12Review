@@ -11,8 +11,10 @@ CGameFramework::CGameFramework()
 	m_hFenceEvent = NULL;
 	m_nFenceValue = 0;
 
-	m_nWndClientWidth = Config::fBufferWidth;
-	m_nWndClientHeight = Config::fBufferHeight;
+	m_nWndClientWidth = Config::FRAME_BUFFER_WIDTH;
+	m_nWndClientHeight = Config::FRAME_BUFFER_HEIGHT;
+
+	_tcscpy_s(m_pszFrameRate, _T("DX12 Review ("));
 }
 
 CGameFramework::~CGameFramework()
@@ -167,7 +169,7 @@ void CGameFramework::CreateD3DDevice()
 #endif
 
 	hr = ::CreateDXGIFactory2(nDXGIFactoryFlags, IID_PPV_ARGS(m_pdxgiFactory.GetAddressOf()));
-
+	
 	if (FAILED(hr))
 	{
 		OutputDebugString(L"DXGI Factory Creation Failed\n");
@@ -352,6 +354,9 @@ void CGameFramework::AnimateObjects()
 
 void CGameFramework::FrameAdvance()
 {
+	//타이머의 시간이 갱신되도록 하고 프레임 레이트를 계산한다.
+	m_GameTimer.Tick(0.0f);
+
 	ProcessInput();
 
 	AnimateObjects();
@@ -427,11 +432,14 @@ void CGameFramework::FrameAdvance()
 	dxgiPresentParameters.pDirtyRects = NULL;
 	dxgiPresentParameters.pScrollRect = NULL;
 	dxgiPresentParameters.pScrollOffset = NULL;
-	m_pdxgiSwapChain->Present1(1, 0, &dxgiPresentParameters);
+	m_pdxgiSwapChain->Present(0, 0);
 
 	//Present1 호출 후, 스왑체인 인터페이스 객체는 SwapEffect가 FLIP_DISCARD이므로
 	//알아서 후면 버퍼 인덱스를 바꿈. 해당 인덱스 값을 가져와서 CPU 변수인 스왑체인 버퍼 인덱스에 저장.
 	m_nSwapChainBufferIndex = m_pdxgiSwapChain->GetCurrentBackBufferIndex();
+
+	m_GameTimer.GetFrameRate(m_pszFrameRate + 13, 36);
+	::SetWindowText(m_hWnd, m_pszFrameRate);
 }
 
 void CGameFramework::WaitForGpuComplete()

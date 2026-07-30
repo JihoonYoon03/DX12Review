@@ -114,7 +114,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // 인스턴스 핸들을 전역 변수에 저장합니다.
    DWORD dwStyle = WS_OVERLAPPED | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_BORDER;
-   RECT rc = { 0, 0, Config::fBufferWidth, Config::fBufferHeight };
+   RECT rc = { 0, 0, Config::FRAME_BUFFER_WIDTH, Config::FRAME_BUFFER_HEIGHT };
 
    AdjustWindowRect(&rc, dwStyle, FALSE);
 
