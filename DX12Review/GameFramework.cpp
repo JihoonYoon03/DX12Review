@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "config.h"
 #include "GameFramework.h"
 
@@ -9,7 +9,10 @@ CGameFramework::CGameFramework()
 	m_nDsvDescIncrementSize = 0;
 
 	m_hFenceEvent = NULL;
-	m_nFenceValue = 0;
+	for (int i = 0; i < m_nSwapChainBuffers; ++i) m_nFenceValues[i] = 0;
+
+	m_d3dViewport = { 0, 0, Config::FRAME_BUFFER_WIDTH, Config::FRAME_BUFFER_HEIGHT, 0.0f, 1.0f };
+	m_d3dScissorRect = { 0, 0, Config::FRAME_BUFFER_WIDTH, Config::FRAME_BUFFER_HEIGHT };
 
 	m_nWndClientWidth = Config::FRAME_BUFFER_WIDTH;
 	m_nWndClientHeight = Config::FRAME_BUFFER_HEIGHT;
@@ -69,7 +72,7 @@ void CGameFramework::CreateSwapChain()
 
 	//스왑체인 세팅
 	DXGI_SWAP_CHAIN_DESC dxgiSwapChainDesc;
-	::ZeroMemory(&dxgiSwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC1));
+	::ZeroMemory(&dxgiSwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
 	dxgiSwapChainDesc.BufferCount = m_nSwapChainBuffers;
 	dxgiSwapChainDesc.BufferDesc.Width = m_nWndClientWidth;
 	dxgiSwapChainDesc.BufferDesc.Height = m_nWndClientHeight;
@@ -217,21 +220,9 @@ void CGameFramework::CreateD3DDevice()
 	{
 		OutputDebugString(L"Fence Creation Failed\n");
 	}
-	m_nFenceValue = 0;
+
 	//펜스 동기화를 위한 이벤트 객체 생성. 초기값 FALSE, 이벤트 실행 시 이벤트 값을 자동 FALSE로 설정.
 	m_hFenceEvent = ::CreateEvent(NULL, FALSE, FALSE, NULL);
-
-	//뷰포트 설정
-	m_d3dViewport.TopLeftX = 0;
-	m_d3dViewport.TopLeftY = 0;
-	//크기는 주 윈도우 클라이언트 영역 전체로 설정
-	m_d3dViewport.Width = static_cast<float>(m_nWndClientWidth);
-	m_d3dViewport.Height = static_cast<float>(m_nWndClientHeight);
-	m_d3dViewport.MinDepth = 0.0f;
-	m_d3dViewport.MaxDepth = 1.0f;
-
-	//ScissorRect 영역을 주 윈도우 클라이언트 영역 전체로 설정
-	m_d3dScissorRect = { 0, 0, m_nWndClientWidth, m_nWndClientHeight };
 }
 
 void CGameFramework::CreateCmdQueueAndList()
@@ -339,10 +330,16 @@ void CGameFramework::CreateDSV()
 
 void CGameFramework::BuildObjects()
 {
+	m_pScene = std::make_unique<CScene>();
+	if (m_pScene) m_pScene->BuildObjects(m_pd3dDevice.Get());
+
+	m_GameTimer.Reset();
 }
 
 void CGameFramework::ReleaseObjects()
 {
+	if (m_pScene) m_pScene->ReleaseObjects();
+	if (m_pScene) m_pScene.reset();
 }
 
 void CGameFramework::ProcessInput()
@@ -351,6 +348,7 @@ void CGameFramework::ProcessInput()
 
 void CGameFramework::AnimateObjects()
 {
+	if (m_pScene) m_pScene->AnimateObjects(m_GameTimer.GetTimeElapsed());
 }
 
 void CGameFramework::FrameAdvance()
@@ -373,44 +371,46 @@ void CGameFramework::FrameAdvance()
 		OutputDebugString(L"Command List Reset Failed in FrameAdvance()\n");
 	}
 
+	//뷰포트, ScissorRect 설정. RS = Rasterizer
+	m_pd3dCmdList->RSSetViewports(1, &m_d3dViewport);
+	m_pd3dCmdList->RSSetScissorRects(1, &m_d3dScissorRect);
+
 	// 현재 후면 버퍼 상태를 Present에서 렌더 타겟 상태로 바꿈.
 	D3D12_RESOURCE_BARRIER d3dResourceBarrier;
 	::ZeroMemory(&d3dResourceBarrier, sizeof(D3D12_RESOURCE_BARRIER));
 	d3dResourceBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	d3dResourceBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 	d3dResourceBarrier.Transition.pResource = m_ppd3dSwapChainBackBuffers[m_nSwapChainBufferIndex].Get();
-	d3dResourceBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	d3dResourceBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 	d3dResourceBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	d3dResourceBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	m_pd3dCmdList->ResourceBarrier(1, &d3dResourceBarrier);
-
-	//뷰포트, ScissorRect 설정. RS = Rasterizer
-	m_pd3dCmdList->RSSetViewports(1, &m_d3dViewport);
-	m_pd3dCmdList->RSSetScissorRects(1, &m_d3dScissorRect);
 
 
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescHandle = m_pd3dRtvDescHeap->GetCPUDescriptorHandleForHeapStart();
 	//현재 렌더 타겟에 해당하는 RTV 디스크립터 힙의 CPU 핸들을 계산
 	d3dRtvCPUDescHandle.ptr += (m_nSwapChainBufferIndex * m_nRtvDescIncrementSize);
 
-	//색상 지정하여 렌더 타겟을 지움
-	float pfClearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f };
-	m_pd3dCmdList->ClearRenderTargetView(d3dRtvCPUDescHandle, pfClearColor/*Colors::Azure*/, 0, NULL);
-
 	//DSV 디스크립터 힙 CPU 핸들을 가져온 뒤 원하는 값으로 지움
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dDsvCPUDescHandle = m_pd3dDsvDescHeap->GetCPUDescriptorHandleForHeapStart();
-	m_pd3dCmdList->ClearDepthStencilView(d3dDsvCPUDescHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, NULL);
 
 	//RTV와 DSV를 OM(Output Merger)에 연결
 	m_pd3dCmdList->OMSetRenderTargets(1, &d3dRtvCPUDescHandle, TRUE, &d3dDsvCPUDescHandle);
 
-	//렌더링 코드는 이 공간에 추가
+	//색상 지정하여 렌더 타겟을 지움
+	float pfClearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f };
+	m_pd3dCmdList->ClearRenderTargetView(d3dRtvCPUDescHandle, pfClearColor/*Colors::Azure*/, 0, NULL);
 
+
+	m_pd3dCmdList->ClearDepthStencilView(d3dDsvCPUDescHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, NULL);
+
+	//렌더링 코드는 이 공간에 추가
+	if (m_pScene) m_pScene->Render(m_pd3dCmdList.Get());
 
 	// 현재 후면 버퍼 상태를 렌더 타겟에서 Present로 바꿈.
-	d3dResourceBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	d3dResourceBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	d3dResourceBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+	d3dResourceBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	m_pd3dCmdList->ResourceBarrier(1, &d3dResourceBarrier);
 
 	//Cmd 리스트 닫기
@@ -428,16 +428,11 @@ void CGameFramework::FrameAdvance()
 	WaitForGpuComplete();
 
 	//스왑체인 Present. Present 후 현재 렌더 타겟(후면 버퍼)의 내용이 전면버퍼로 옮겨지고 렌더 타겟 인덱스가 바뀜.
-	DXGI_PRESENT_PARAMETERS dxgiPresentParameters;
-	dxgiPresentParameters.DirtyRectsCount = 0;
-	dxgiPresentParameters.pDirtyRects = NULL;
-	dxgiPresentParameters.pScrollRect = NULL;
-	dxgiPresentParameters.pScrollOffset = NULL;
 	m_pdxgiSwapChain->Present(0, 0);
 
 	//Present1 호출 후, 스왑체인 인터페이스 객체는 SwapEffect가 FLIP_DISCARD이므로
 	//알아서 후면 버퍼 인덱스를 바꿈. 해당 인덱스 값을 가져와서 CPU 변수인 스왑체인 버퍼 인덱스에 저장.
-	m_nSwapChainBufferIndex = m_pdxgiSwapChain->GetCurrentBackBufferIndex();
+	MoveToNextFrame();
 
 	m_GameTimer.GetFrameRate(m_pszFrameRate + 13, 36);
 	::SetWindowText(m_hWnd, m_pszFrameRate);
@@ -446,11 +441,10 @@ void CGameFramework::FrameAdvance()
 void CGameFramework::WaitForGpuComplete()
 {
 	//CPU 펜스 값 증가
-	m_nFenceValue++;
-
-	const UINT64 nFence = m_nFenceValue;
+	UINT64 nFenceValue = ++m_nFenceValues[m_nSwapChainBufferIndex];
+	
 	//GPU가 펜스 값을 설정하는 명령을 명령 큐에 추가함
-	HRESULT hr = m_pd3dCmdQueue->Signal(m_pd3dFence.Get(), nFence);
+	HRESULT hr = m_pd3dCmdQueue->Signal(m_pd3dFence.Get(), nFenceValue);
 	if (FAILED(hr))
 	{
 		OutputDebugString(L"Fence Signal Command Failed\n");
@@ -458,9 +452,9 @@ void CGameFramework::WaitForGpuComplete()
 	else
 	{
 		//펜스의 현재 값이 설정 값보다 작으면, 설정 값이 될 때까지 기다림
-		if (m_pd3dFence->GetCompletedValue() < nFence)
+		if (m_pd3dFence->GetCompletedValue() < nFenceValue)
 		{
-			hr = m_pd3dFence->SetEventOnCompletion(nFence, m_hFenceEvent);
+			hr = m_pd3dFence->SetEventOnCompletion(nFenceValue, m_hFenceEvent);
 			if (FAILED(hr))
 			{
 				OutputDebugString(L"Fence Event Set Failed\n");
@@ -521,6 +515,19 @@ void CGameFramework::ChangeSwapChainState()
 	m_nSwapChainBufferIndex = m_pdxgiSwapChain->GetCurrentBackBufferIndex();
 
 	CreateRTV();
+}
+
+void CGameFramework::MoveToNextFrame()
+{
+	m_nSwapChainBufferIndex = m_pdxgiSwapChain->GetCurrentBackBufferIndex();
+
+	UINT64 nFenceValue = ++m_nFenceValues[m_nSwapChainBufferIndex];
+	HRESULT hr = m_pd3dCmdQueue->Signal(m_pd3dFence.Get(), nFenceValue);
+	if (m_pd3dFence->GetCompletedValue() < nFenceValue)
+	{
+		hr = m_pd3dFence->SetEventOnCompletion(nFenceValue, m_hFenceEvent);
+		::WaitForSingleObject(m_hFenceEvent, INFINITE);
+	}
 }
 
 void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam)

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Timer.h"
+#include "Scene.h"
 
 class CGameFramework
 {
@@ -34,7 +35,10 @@ public:
 	//CPU와 GPU를 동기화하는 함수
 	void WaitForGpuComplete();
 
+	//전체화면 토글 함수
 	void ChangeSwapChainState();
+
+	void MoveToNextFrame();
 
 	// 윈도우 메시지(키보드, 마우스 입력)를 처리하는 함수
 	void OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
@@ -87,7 +91,7 @@ private:
 
 	//Fence 인터페이스 포인터, Fence의 값, 이벤트 핸들
 	ComPtr<ID3D12Fence>				m_pd3dFence;
-	UINT64							m_nFenceValue;
+	UINT64							m_nFenceValues[m_nSwapChainBuffers];
 	HANDLE							m_hFenceEvent;
 
 	//뷰포트와 ScissorRect 정보 구조체
@@ -100,5 +104,8 @@ private:
 
 	//다음은 프레임 레이트를 주 윈도우의 캡션에 출력하기 위한 문자열이다.
 	_TCHAR m_pszFrameRate[50];
+
+	//씬을 위한 멤버 변수
+	std::unique_ptr<CScene> m_pScene;
 };
 
