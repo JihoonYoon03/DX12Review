@@ -167,5 +167,5 @@ void CScene::Render(ID3D12GraphicsCommandList* pd3dCommandList)
 	PrepareRender(pd3dCommandList);
 
 	//정점 3개를 사용하여 렌더링한다.
-	pd3dCommandList->DrawInstanced(3, 1, 0, 0);
+	pd3dCommandList->DrawInstanced(6, 1, 0, 0);
 }
