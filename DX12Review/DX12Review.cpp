@@ -1,10 +1,9 @@
-﻿// DX12Review.cpp : 애플리케이션에 대한 진입점을 정의합니다.
+// DX12Review.cpp : 애플리케이션에 대한 진입점을 정의합니다.
 //
 
 #include "pch.h"
 #include "DX12Review.h"
 
-#include "config.h"
 #include "GameFramework.h"
 
 #define MAX_LOADSTRING 100

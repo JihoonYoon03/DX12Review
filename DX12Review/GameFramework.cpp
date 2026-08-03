@@ -1,6 +1,6 @@
 #include "pch.h"
-#include "config.h"
 #include "GameFramework.h"
+#include "Camera.h"
 
 CGameFramework::CGameFramework()
 {
@@ -10,9 +10,6 @@ CGameFramework::CGameFramework()
 
 	m_hFenceEvent = NULL;
 	for (int i = 0; i < m_nSwapChainBuffers; ++i) m_nFenceValues[i] = 0;
-
-	m_d3dViewport = { 0, 0, Config::FRAME_BUFFER_WIDTH, Config::FRAME_BUFFER_HEIGHT, 0.0f, 1.0f };
-	m_d3dScissorRect = { 0, 0, Config::FRAME_BUFFER_WIDTH, Config::FRAME_BUFFER_HEIGHT };
 
 	m_nWndClientWidth = Config::FRAME_BUFFER_WIDTH;
 	m_nWndClientHeight = Config::FRAME_BUFFER_HEIGHT;
@@ -332,6 +329,13 @@ void CGameFramework::BuildObjects()
 {
 	m_pd3dCmdList->Reset(m_pd3dCmdAllocator.Get(), NULL);
 
+	//카메라 객체를 생성하여 뷰포트, 씨저 사각형, 투영 변환 행렬, 카메라 변환 행렬을 생성하고 설정한다.
+	m_pCamera = std::make_shared<CCamera>();
+	m_pCamera->SetViewport(0, 0, m_nWndClientWidth, m_nWndClientHeight, 0.0f, 1.0f);
+	m_pCamera->SetScissorRect(0, 0, m_nWndClientWidth, m_nWndClientHeight);
+	m_pCamera->GenerateProjectionMatrix(1.0f, 500.0f, float(m_nWndClientWidth) / float(m_nWndClientHeight), 90.0f);
+	m_pCamera->GenereateViewMatrix(XMFLOAT3(0.0f, 0.0f, -2.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f));
+
 	//씬 객체를 생성하고 씬에 포함될 게임 객체들을 생성한다.
 	m_pScene = std::make_unique<CScene>();
 	m_pScene->BuildObjects(m_pd3dDevice.Get(), m_pd3dCmdList.Get());
@@ -385,10 +389,6 @@ void CGameFramework::FrameAdvance()
 		OutputDebugString(L"Command List Reset Failed in FrameAdvance()\n");
 	}
 
-	//뷰포트, ScissorRect 설정. RS = Rasterizer
-	m_pd3dCmdList->RSSetViewports(1, &m_d3dViewport);
-	m_pd3dCmdList->RSSetScissorRects(1, &m_d3dScissorRect);
-
 	// 현재 후면 버퍼 상태를 Present에서 렌더 타겟 상태로 바꿈.
 	D3D12_RESOURCE_BARRIER d3dResourceBarrier;
 	::ZeroMemory(&d3dResourceBarrier, sizeof(D3D12_RESOURCE_BARRIER));
@@ -419,7 +419,7 @@ void CGameFramework::FrameAdvance()
 	m_pd3dCmdList->ClearDepthStencilView(d3dDsvCPUDescHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, NULL);
 
 	//렌더링 코드는 이 공간에 추가
-	if (m_pScene) m_pScene->Render(m_pd3dCmdList.Get());
+	if (m_pScene) m_pScene->Render(m_pd3dCmdList.Get(), m_pCamera.get());
 
 	// 현재 후면 버퍼 상태를 렌더 타겟에서 Present로 바꿈.
 	d3dResourceBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;

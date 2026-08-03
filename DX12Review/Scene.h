@@ -2,7 +2,9 @@
 
 #include "Timer.h"
 
+class CCamera;
 class CShader;
+class CGameObject;
 
 class CScene
 {
@@ -10,6 +12,7 @@ public:
 	CScene();
 	~CScene();
 
+	//씬에서 마우스와 키보드 메시지를 처리한다
 	bool OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	bool OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 
@@ -18,7 +21,7 @@ public:
 
 	bool ProcessInput(UCHAR* pKeysBuffer);
 	void AnimateObjects(float fTimeElapsed);
-	void Render(ID3D12GraphicsCommandList* pd3dCommandList);
+	void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera);
 
 	void ReleaseUploadBuffers();
 
@@ -27,7 +30,8 @@ public:
 	ID3D12RootSignature* GetGraphicsrootSignature();
 
 protected:
-	std::vector<std::shared_ptr<CShader>> m_vpShaders;
+	//씬은 게임 객체들의 집합이다. 게임 객체는 셰이더를 포함한다.
+	std::vector<std::shared_ptr<CGameObject>> m_vpObjects;
 
 	ComPtr<ID3D12RootSignature> m_pd3dGraphicsRootSignature;
 };

@@ -2,6 +2,8 @@
 #include "Scene.h"
 #include "Mesh.h"
 #include "Shader.h"
+#include "GameObject.h"
+#include "Camera.h"
 
 CScene::CScene()
 {
@@ -25,14 +27,33 @@ ID3D12RootSignature* CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevic
 {
 	ID3D12RootSignature* pd3dGraphicsRootSignature;
 
-	//매개변수가 없는 루트 시그니쳐를 생성한다
+	//뷰, 투영 행렬을 전달하기 위한 루트 파라미터
+	D3D12_ROOT_PARAMETER pd3dRootParameters[2];
+	pd3dRootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+	pd3dRootParameters[0].Constants.Num32BitValues = 16;
+	pd3dRootParameters[0].Constants.ShaderRegister = 0;
+	pd3dRootParameters[0].Constants.RegisterSpace = 0;
+	pd3dRootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	pd3dRootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+	pd3dRootParameters[1].Constants.Num32BitValues = 32;
+	pd3dRootParameters[1].Constants.ShaderRegister = 1;
+	pd3dRootParameters[1].Constants.RegisterSpace = 0;
+	pd3dRootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+
+	D3D12_ROOT_SIGNATURE_FLAGS d3dRootSignatureFlags =
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+
 	D3D12_ROOT_SIGNATURE_DESC d3dRootSignatureDesc;
 	::ZeroMemory(&d3dRootSignatureDesc, sizeof(D3D12_ROOT_SIGNATURE_DESC));
-	d3dRootSignatureDesc.NumParameters = 0;
-	d3dRootSignatureDesc.pParameters = NULL;
+	d3dRootSignatureDesc.NumParameters = _countof(pd3dRootParameters);
+	d3dRootSignatureDesc.pParameters = pd3dRootParameters;
 	d3dRootSignatureDesc.NumStaticSamplers = 0;
 	d3dRootSignatureDesc.pStaticSamplers = NULL;
-	d3dRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	d3dRootSignatureDesc.Flags = d3dRootSignatureFlags;
 
 	ID3DBlob* pd3dSignatureBlob = NULL;
 	ID3DBlob* pd3dErrorBlob = NULL;
@@ -56,26 +77,32 @@ void CScene::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* p
 {
 	m_pd3dGraphicsRootSignature = CreateGraphicsRootSignature(pd3dDevice);
 
-	std::shared_ptr<CShader> pShader = std::make_shared<CShader>();
-	pShader->CreateShader(pd3dDevice, m_pd3dGraphicsRootSignature.Get());
-	pShader->BuildObjects(pd3dDevice, pd3dCommandList, NULL);
+	std::shared_ptr<CTriangleMesh> pMesh = std::make_shared<CTriangleMesh>(pd3dDevice, pd3dCommandList);
 
-	m_vpShaders.push_back(std::move(pShader));
+	std::shared_ptr<CRotatingObject> pRotatingObject = std::make_shared<CRotatingObject>();
+	pRotatingObject->SetMesh(pMesh);
+
+	std::shared_ptr<CDiffusedShader> pShader = std::make_shared<CDiffusedShader>();
+	pShader->CreateShader(pd3dDevice, m_pd3dGraphicsRootSignature.Get());
+	pShader->CreateShaderVariables(pd3dDevice, pd3dCommandList);
+
+	pRotatingObject->SetShader(pShader);
+
+	m_vpObjects.push_back(pRotatingObject);
 }
 
 void CScene::ReleaseObjects()
 {
 	if (m_pd3dGraphicsRootSignature) m_pd3dGraphicsRootSignature.Reset();
 
-	for (std::shared_ptr<CShader>& shader : m_vpShaders)
+	for (std::shared_ptr<CGameObject>& object : m_vpObjects)
 	{
-		if (shader.get()) 
+		if (object.get()) 
 		{
-			shader->ReleaseShaderVariables();
-			shader->ReleaseObjects();
+			object.reset();
 		}
 	}
-	m_vpShaders.clear();
+	m_vpObjects.clear();
 }
 
 bool CScene::ProcessInput(UCHAR* pKeysBuffer)
@@ -85,24 +112,32 @@ bool CScene::ProcessInput(UCHAR* pKeysBuffer)
 
 void CScene::AnimateObjects(float fTimeElapsed)
 {
+	for (std::shared_ptr<CGameObject>& object : m_vpObjects)
+	{
+		object->Animate(fTimeElapsed);
+	}
 }
 
-void CScene::Render(ID3D12GraphicsCommandList* pd3dCommandList)
+void CScene::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
 {
+	pCamera->SetViewportsAndScissorRects(pd3dCommandList);
 	//그래픽 루트 시그니쳐를 파이프라인에 연결(설정)한다.
 	pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get());
 
-	for (std::shared_ptr<CShader>& shader : m_vpShaders)
+	if (pCamera) pCamera->UpdateShaderVariables(pd3dCommandList);
+
+	//씬을 렌더링하는 것은 씬을 구성하는 게임 객체(셰이더를 포함하는 객체)들을 렌더링하는 것이다.
+	for (std::shared_ptr<CGameObject>& object : m_vpObjects)
 	{
-		shader->Render(pd3dCommandList);
+		if(object.get()) object->Render(pd3dCommandList, pCamera);
 	}
 }
 
 void CScene::ReleaseUploadBuffers()
 {
-	for (std::shared_ptr<CShader>& shader : m_vpShaders)
+	for (std::shared_ptr<CGameObject>& object : m_vpObjects)
 	{
-		if (shader.get()) shader->ReleaseUploadBuffers();
+		if (object.get()) object->ReleaseUploadBuffers();
 	}
 }
 

@@ -1,7 +1,9 @@
-﻿#pragma once
+#pragma once
 
 #include "Timer.h"
 #include "Scene.h"
+
+class CCamera;
 
 class CGameFramework
 {
@@ -44,6 +46,8 @@ public:
 	void OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	void OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	LRESULT CALLBACK OnProcessingWindowMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
+
+	std::shared_ptr<CCamera> m_pCamera;
 
 private:
 	//현재 실행중인 프로그램 모듈 식별 핸들 HINSTANCE, 특정 윈도우 창 식별 핸들 HWND
@@ -93,11 +97,6 @@ private:
 	ComPtr<ID3D12Fence>				m_pd3dFence;
 	UINT64							m_nFenceValues[m_nSwapChainBuffers];
 	HANDLE							m_hFenceEvent;
-
-	//뷰포트와 ScissorRect 정보 구조체
-	D3D12_VIEWPORT					m_d3dViewport;
-	D3D12_RECT						m_d3dScissorRect;
-
 
 	//다음은 게임 프레임워크에서 사용할 타이머이다.
 	CGameTimer m_GameTimer;

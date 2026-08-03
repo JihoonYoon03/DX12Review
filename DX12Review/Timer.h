@@ -1,6 +1,4 @@
-﻿#pragma once
-
-#include "config.h"
+#pragma once
 
 class CGameTimer
 {

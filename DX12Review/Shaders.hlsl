@@ -1,3 +1,15 @@
+//게임 객체의 정보를 위한 상수 버퍼를 선언한다.
+cbuffer cbGameObjectInfo : register(b0)
+{
+    matrix gmtxWorld : packoffset(c0);
+};
+
+cbuffer cbCameraInfo : register(b1)
+{
+    matrix gmtxView : packoffset(c0);
+    matrix gmtxProjection : packoffset(c4);
+};
+
 //정점 셰이더의 입력을 위한 구조체를 선언한다.
 struct VS_INPUT
 {
@@ -13,20 +25,19 @@ struct VS_OUTPUT
 };
 
 //정점 쉐이더를 정의한다.
-VS_OUTPUT VSMain( VS_INPUT input )
+VS_OUTPUT VSDiffused( VS_INPUT input )
 {
     VS_OUTPUT output;
     
-    //정점의 위치 벡터는 투영좌표계로 표현되어 있으므로 변환하지 않고 그대로 출력한다.
-    output.position = float4(input.position, 1.0f);
-    //입력되는 픽셀의 색상을 그대로 출력한다.
+    //정점을 변환한다.
+    output.position = mul(mul(mul(float4(input.position, 1.0f), gmtxWorld), gmtxView), gmtxProjection);
     output.color = input.color;
     
     return output;
 }
 
 //픽셀 셰이더를 정의한다.
-float4 PSMain(VS_OUTPUT input) : SV_Target
+float4 PSDiffused(VS_OUTPUT input) : SV_Target
 {
     //입력되는 픽셀 색상을 그대로 OM으로 출력
     return input.color;
