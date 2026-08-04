@@ -77,10 +77,11 @@ void CScene::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* p
 {
 	m_pd3dGraphicsRootSignature = CreateGraphicsRootSignature(pd3dDevice);
 
-	std::shared_ptr<CTriangleMesh> pMesh = std::make_shared<CTriangleMesh>(pd3dDevice, pd3dCommandList);
+	std::shared_ptr<CCubeMeshDiffused> pMesh = std::make_shared<CCubeMeshDiffused>(pd3dDevice, pd3dCommandList, 12.0f, 12.0f, 12.0f);
 
 	std::shared_ptr<CRotatingObject> pRotatingObject = std::make_shared<CRotatingObject>();
 	pRotatingObject->SetMesh(pMesh);
+	pRotatingObject->SetRotationSpeed(100.0f);
 
 	std::shared_ptr<CDiffusedShader> pShader = std::make_shared<CDiffusedShader>();
 	pShader->CreateShader(pd3dDevice, m_pd3dGraphicsRootSignature.Get());
