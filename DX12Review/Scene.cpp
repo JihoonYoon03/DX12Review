@@ -76,34 +76,21 @@ ID3D12RootSignature* CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevic
 void CScene::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
 	m_pd3dGraphicsRootSignature = CreateGraphicsRootSignature(pd3dDevice);
-
-	std::shared_ptr<CCubeMeshDiffused> pMesh = std::make_shared<CCubeMeshDiffused>(pd3dDevice, pd3dCommandList, 12.0f, 12.0f, 12.0f);
-
-	std::shared_ptr<CRotatingObject> pRotatingObject = std::make_shared<CRotatingObject>();
-	pRotatingObject->SetMesh(pMesh);
-	pRotatingObject->SetRotationSpeed(100.0f);
-
-	std::shared_ptr<CDiffusedShader> pShader = std::make_shared<CDiffusedShader>();
-	pShader->CreateShader(pd3dDevice, m_pd3dGraphicsRootSignature.Get());
-	pShader->CreateShaderVariables(pd3dDevice, pd3dCommandList);
-
-	pRotatingObject->SetShader(pShader);
-
-	m_vpObjects.push_back(pRotatingObject);
+	m_vShaders.push_back({});
+	m_vShaders[0].CreateShader(pd3dDevice, m_pd3dGraphicsRootSignature.Get());
+	m_vShaders[0].BuildObjects(pd3dDevice, pd3dCommandList);
 }
 
 void CScene::ReleaseObjects()
 {
 	if (m_pd3dGraphicsRootSignature) m_pd3dGraphicsRootSignature.Reset();
 
-	for (std::shared_ptr<CGameObject>& object : m_vpObjects)
+	for (CObjectsShader& shader : m_vShaders)
 	{
-		if (object.get()) 
-		{
-			object.reset();
-		}
+		shader.ReleaseShaderVariables();
+		shader.ReleaseObjects();
 	}
-	m_vpObjects.clear();
+	m_vShaders.clear();
 }
 
 bool CScene::ProcessInput(UCHAR* pKeysBuffer)
@@ -113,9 +100,9 @@ bool CScene::ProcessInput(UCHAR* pKeysBuffer)
 
 void CScene::AnimateObjects(float fTimeElapsed)
 {
-	for (std::shared_ptr<CGameObject>& object : m_vpObjects)
+	for (CObjectsShader& shader : m_vShaders)
 	{
-		object->Animate(fTimeElapsed);
+		shader.AnimateObjects(fTimeElapsed);
 	}
 }
 
@@ -128,17 +115,17 @@ void CScene::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera
 	if (pCamera) pCamera->UpdateShaderVariables(pd3dCommandList);
 
 	//씬을 렌더링하는 것은 씬을 구성하는 게임 객체(셰이더를 포함하는 객체)들을 렌더링하는 것이다.
-	for (std::shared_ptr<CGameObject>& object : m_vpObjects)
+	for (CObjectsShader& shader : m_vShaders)
 	{
-		if(object.get()) object->Render(pd3dCommandList, pCamera);
+		shader.Render(pd3dCommandList, pCamera);
 	}
 }
 
 void CScene::ReleaseUploadBuffers()
 {
-	for (std::shared_ptr<CGameObject>& object : m_vpObjects)
+	for (CObjectsShader& shader : m_vShaders)
 	{
-		if (object.get()) object->ReleaseUploadBuffers();
+		shader.ReleaseUploadBuffers();
 	}
 }
 

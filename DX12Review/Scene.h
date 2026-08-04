@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Timer.h"
+#include "Shader.h"
 
 class CCamera;
-class CShader;
 class CGameObject;
 
 class CScene
@@ -31,7 +31,7 @@ public:
 
 protected:
 	//씬은 게임 객체들의 집합이다. 게임 객체는 셰이더를 포함한다.
-	std::vector<std::shared_ptr<CGameObject>> m_vpObjects;
+	std::vector<CObjectsShader> m_vShaders;
 
 	ComPtr<ID3D12RootSignature> m_pd3dGraphicsRootSignature;
 };
