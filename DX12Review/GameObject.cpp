@@ -2,6 +2,7 @@
 #include "GameObject.h"
 #include "Shader.h"
 #include "Camera.h"
+#include "Player.h"
 
 CGameObject::CGameObject()
 {

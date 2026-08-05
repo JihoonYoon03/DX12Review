@@ -2,6 +2,7 @@
 
 #include "Timer.h"
 #include "Scene.h"
+#include "Player.h"
 
 class CCamera;
 
@@ -48,6 +49,10 @@ public:
 	LRESULT CALLBACK OnProcessingWindowMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 
 	std::shared_ptr<CCamera> m_pCamera;
+
+	std::shared_ptr<CPlayer> m_pPlayer;
+
+	POINT m_ptOldCursorPos;
 
 private:
 	//현재 실행중인 프로그램 모듈 식별 핸들 HINSTANCE, 특정 윈도우 창 식별 핸들 HWND

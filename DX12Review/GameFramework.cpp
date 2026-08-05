@@ -329,16 +329,13 @@ void CGameFramework::BuildObjects()
 {
 	m_pd3dCmdList->Reset(m_pd3dCmdAllocator.Get(), NULL);
 
-	//카메라 객체를 생성하여 뷰포트, 씨저 사각형, 투영 변환 행렬, 카메라 변환 행렬을 생성하고 설정한다.
-	m_pCamera = std::make_shared<CCamera>();
-	m_pCamera->SetViewport(0, 0, m_nWndClientWidth, m_nWndClientHeight, 0.0f, 1.0f);
-	m_pCamera->SetScissorRect(0, 0, m_nWndClientWidth, m_nWndClientHeight);
-	m_pCamera->GenerateProjectionMatrix(1.0f, 500.0f, float(m_nWndClientWidth) / float(m_nWndClientHeight), 90.0f);
-	m_pCamera->GenereateViewMatrix(XMFLOAT3(0.0f, 0.0f, -50.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f));
-
 	//씬 객체를 생성하고 씬에 포함될 게임 객체들을 생성한다.
 	m_pScene = std::make_unique<CScene>();
 	m_pScene->BuildObjects(m_pd3dDevice.Get(), m_pd3dCmdList.Get());
+
+	std::shared_ptr<CAirplanePlayer> pAirplanePlayer = std::make_shared<CAirplanePlayer>(m_pd3dDevice.Get(), m_pd3dCmdList.Get(), m_pScene->GetGraphicsrootSignature());
+	m_pPlayer = pAirplanePlayer;
+	m_pCamera = m_pPlayer->GetCamera();
 
 	//씬 객체를 생성하기 위하여 필요한 그래픽 명령 리스트들을 명령 큐에 추가한다.
 	m_pd3dCmdList->Close();
@@ -362,12 +359,62 @@ void CGameFramework::ReleaseObjects()
 
 void CGameFramework::ProcessInput()
 {
+	static UCHAR pKeyBuffer[256];
+	DWORD dwDirection = 0;
+	//키보드 상태 정보를 반환한다.
+	if (::GetKeyboardState(pKeyBuffer))
+	{
+		if (pKeyBuffer[VK_UP] & 0xF0) dwDirection |= DIR_FORWARD;
+		if (pKeyBuffer[VK_DOWN] & 0xF0) dwDirection |= DIR_BACKWARD;
+		if (pKeyBuffer[VK_LEFT] & 0xF0) dwDirection |= DIR_LEFT;
+		if (pKeyBuffer[VK_RIGHT] & 0xF0) dwDirection |= DIR_RIGHT;
+		if (pKeyBuffer[VK_PRIOR] & 0xF0) dwDirection |= DIR_UP;
+		if (pKeyBuffer[VK_NEXT] & 0xF0) dwDirection |= DIR_DOWN;
+	}
+	float cxDelta = 0.0f, cyDelta = 0.0f;
+	POINT ptCursorPos;
+
+	//마우스를 누른 경우만
+	if (::GetCapture() == m_hWnd)
+	{
+		//커서 숨기기
+		::SetCursor(NULL);
+
+		::GetCursorPos(&ptCursorPos);
+	
+		//마우스 이동량 계산
+		cxDelta = (float)(ptCursorPos.x - m_ptOldCursorPos.x) / 3.0f;
+		cyDelta = (float)(ptCursorPos.y - m_ptOldCursorPos.y) / 3.0f;
+
+		//마우스 커서 위치를 마우스가 눌린 위치로 복구
+		::SetCursorPos(m_ptOldCursorPos.x, m_ptOldCursorPos.y);
+	}
+	//마우스 또는 키 입력이 있으면 플레이어를 이동하거나 회전함
+	if ((dwDirection != 0) || (cxDelta != 0.0f) || (cyDelta != 0.0f))
+	{
+		if (cxDelta || cyDelta)
+		{
+			//cxDelta = Yaw, cyDelta = Pitch
+			if (pKeyBuffer[VK_RBUTTON] & 0xF0)
+				m_pPlayer->Rotate(cyDelta, 0.0f, -cxDelta);
+			else
+				m_pPlayer->Rotate(cyDelta, cxDelta, 0.0f);
+		}
+		//플레이어를 dwDirection 방향으로 이동(속도 벡터 변경). 이동 속력은 50/sec로 가정
+		if (dwDirection) m_pPlayer->Move(dwDirection, 50.0f * m_GameTimer.GetTimeElapsed(), true);
+	}
+
+	//플레이어를 실제로 이동 및 카메라 갱신. 중력과 마찰력의 영향을 속도 벡터에 적용
+	m_pPlayer->Update(m_GameTimer.GetTimeElapsed());
 }
 
 void CGameFramework::AnimateObjects()
 {
 	if (m_pScene) m_pScene->AnimateObjects(m_GameTimer.GetTimeElapsed());
 }
+
+
+//#define _WITH_PLAYER_TOP
 
 void CGameFramework::FrameAdvance()
 {
@@ -420,6 +467,14 @@ void CGameFramework::FrameAdvance()
 
 	//렌더링 코드는 이 공간에 추가
 	if (m_pScene) m_pScene->Render(m_pd3dCmdList.Get(), m_pCamera.get());
+
+	//3인칭 카메라일 때 플레이어가 가리지 않게 항상 보이도록 렌더링
+#ifdef _WITH_PLAYER_TOP
+	//렌더 타겟은 그대로, 깊이 버퍼만 1.0으로 지움
+	m_pd3dCmdList->ClearDepthStencilView(d3dDsvCPUDescHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, NULL);
+#endif
+	//3인칭 카메라일 때 플레이어 렌더링
+	if (m_pPlayer) m_pPlayer->Render(m_pd3dCmdList.Get(), m_pCamera.get());
 
 	// 현재 후면 버퍼 상태를 렌더 타겟에서 Present로 바꿈.
 	d3dResourceBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -550,9 +605,14 @@ void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM
 	{
 	case WM_LBUTTONDOWN:
 	case WM_RBUTTONDOWN:
+		//마우스 캡쳐 후 현재 마우스 위치를 가져온다
+		::SetCapture(hWnd);
+		::GetCursorPos(&m_ptOldCursorPos);
 		break;
 	case WM_LBUTTONUP:
 	case WM_RBUTTONUP:
+		//마우스 캡쳐 해제
+		::ReleaseCapture();
 		break;
 	case WM_MOUSEMOVE:
 		break;
@@ -579,6 +639,11 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 			//윈도우 모드와 전체화면 모드 전환
 			ChangeSwapChainState();
 			break;
+			//F1은 1인칭, F2는 우주선, F3는 3인칭 카메라
+		case VK_F1:
+		case VK_F2:
+		case VK_F3:
+			if (m_pPlayer) m_pCamera = m_pPlayer->ChangeCamera((wParam - VK_F1 + 1), m_GameTimer.GetTimeElapsed());
 		default:
 			break;
 		}
