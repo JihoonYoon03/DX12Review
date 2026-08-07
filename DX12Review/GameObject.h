@@ -23,6 +23,7 @@ public:
 
 	virtual void OnPrepareRender();
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera);
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, UINT nInstances, D3D12_VERTEX_BUFFER_VIEW d3dInstancingBufferView);
 
 	//상수 버퍼를 생성한다.
 	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
@@ -35,6 +36,7 @@ public:
 	XMFLOAT3 GetLook();
 	XMFLOAT3 GetUp();
 	XMFLOAT3 GetRight();
+	XMFLOAT4X4& GetWorldMatrix() { return m_xmf4x4World; }
 
 	//게임 객체의 위치를 설정한다.
 	void SetPosition(float x, float y, float z);
@@ -51,9 +53,9 @@ public:
 protected:
 	XMFLOAT4X4 m_xmf4x4World;
 
-	std::shared_ptr<CMesh> m_pMesh = NULL;
+	std::shared_ptr<CMesh> m_pMesh = nullptr;
 
-	std::shared_ptr<CShader> m_pShader = NULL;
+	std::shared_ptr<CShader> m_pShader = nullptr;
 };
 
 class CRotatingObject : public CGameObject

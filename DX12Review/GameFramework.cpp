@@ -8,7 +8,7 @@ CGameFramework::CGameFramework()
 
 	m_nDsvDescIncrementSize = 0;
 
-	m_hFenceEvent = NULL;
+	m_hFenceEvent = nullptr;
 	for (int i = 0; i < m_nSwapChainBuffers; ++i) m_nFenceValues[i] = 0;
 
 	m_nWndClientWidth = Config::FRAME_BUFFER_WIDTH;
@@ -49,7 +49,7 @@ void CGameFramework::OnDestroy()
 
 	::CloseHandle(m_hFenceEvent);
 
-	m_pdxgiSwapChain->SetFullscreenState(FALSE, NULL);
+	m_pdxgiSwapChain->SetFullscreenState(FALSE, nullptr);
 
 #if defined(_DEBUG)
 	//미소멸 객체가 존재하는지 추적
@@ -219,7 +219,7 @@ void CGameFramework::CreateD3DDevice()
 	}
 
 	//펜스 동기화를 위한 이벤트 객체 생성. 초기값 FALSE, 이벤트 실행 시 이벤트 값을 자동 FALSE로 설정.
-	m_hFenceEvent = ::CreateEvent(NULL, FALSE, FALSE, NULL);
+	m_hFenceEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
 }
 
 void CGameFramework::CreateCmdQueueAndList()
@@ -244,7 +244,7 @@ void CGameFramework::CreateCmdQueueAndList()
 	}
 
 	//파이프라인 상태 객체(PSO)는 생성 시점에는 지정하지 않음. 추후 명령 기록 전에 PSO를 설정해주면 됨.
-	hr = m_pd3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_pd3dCmdAllocator.Get(), NULL, IID_PPV_ARGS(m_pd3dCmdList.GetAddressOf()));
+	hr = m_pd3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_pd3dCmdAllocator.Get(), nullptr, IID_PPV_ARGS(m_pd3dCmdList.GetAddressOf()));
 	if (FAILED(hr))
 	{
 		OutputDebugString(L"Command List Creation Failed\n");
@@ -271,7 +271,7 @@ void CGameFramework::CreateRTV()
 		}
 		//위에서 가져온 후면 버퍼 리소스를 렌더 타깃으로 사용할 수 있도록
 		//현재 RTV 디스크립터 슬롯에 해당 리소스에 대한 RTV 디스크립터를 기록함
-		m_pd3dDevice->CreateRenderTargetView(m_ppd3dSwapChainBackBuffers[i].Get(), NULL, d3dRtvCPUDescHandle);
+		m_pd3dDevice->CreateRenderTargetView(m_ppd3dSwapChainBackBuffers[i].Get(), nullptr, d3dRtvCPUDescHandle);
 		//다음 디스크립터 슬롯으로 넘어가기
 		d3dRtvCPUDescHandle.ptr += m_nRtvDescIncrementSize;
 	}
@@ -322,12 +322,12 @@ void CGameFramework::CreateDSV()
 
 	//깊이스텐실 버퍼 뷰 생성
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dDsvCPUDescHandle = m_pd3dDsvDescHeap->GetCPUDescriptorHandleForHeapStart();
-	m_pd3dDevice->CreateDepthStencilView(m_pd3dDepthStencilBuffer.Get(), NULL, d3dDsvCPUDescHandle);
+	m_pd3dDevice->CreateDepthStencilView(m_pd3dDepthStencilBuffer.Get(), nullptr, d3dDsvCPUDescHandle);
 }
 
 void CGameFramework::BuildObjects()
 {
-	m_pd3dCmdList->Reset(m_pd3dCmdAllocator.Get(), NULL);
+	m_pd3dCmdList->Reset(m_pd3dCmdAllocator.Get(), nullptr);
 
 	//씬 객체를 생성하고 씬에 포함될 게임 객체들을 생성한다.
 	m_pScene = std::make_unique<CScene>();
@@ -378,7 +378,7 @@ void CGameFramework::ProcessInput()
 	if (::GetCapture() == m_hWnd)
 	{
 		//커서 숨기기
-		::SetCursor(NULL);
+		::SetCursor(nullptr);
 
 		::GetCursorPos(&ptCursorPos);
 	
@@ -400,8 +400,8 @@ void CGameFramework::ProcessInput()
 			else
 				m_pPlayer->Rotate(cyDelta, cxDelta, 0.0f);
 		}
-		//플레이어를 dwDirection 방향으로 이동(속도 벡터 변경). 이동 속력은 50/sec로 가정
-		if (dwDirection) m_pPlayer->Move(dwDirection, 50.0f * m_GameTimer.GetTimeElapsed(), true);
+		//플레이어를 dwDirection 방향으로 이동(속도 벡터 변경). 이동 속력은 100/sec로 가정
+		if (dwDirection) m_pPlayer->Move(dwDirection, 100.0f * m_GameTimer.GetTimeElapsed(), true);
 	}
 
 	//플레이어를 실제로 이동 및 카메라 갱신. 중력과 마찰력의 영향을 속도 벡터에 적용
@@ -430,7 +430,7 @@ void CGameFramework::FrameAdvance()
 	{
 		OutputDebugString(L"Command Allocator Reset Failed in FrameAdvance()\n");
 	}
-	hr = m_pd3dCmdList->Reset(m_pd3dCmdAllocator.Get(), NULL);
+	hr = m_pd3dCmdList->Reset(m_pd3dCmdAllocator.Get(), nullptr);
 	if (FAILED(hr))
 	{
 		OutputDebugString(L"Command List Reset Failed in FrameAdvance()\n");
@@ -460,10 +460,10 @@ void CGameFramework::FrameAdvance()
 
 	//색상 지정하여 렌더 타겟을 지움
 	float pfClearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f };
-	m_pd3dCmdList->ClearRenderTargetView(d3dRtvCPUDescHandle, pfClearColor/*Colors::Azure*/, 0, NULL);
+	m_pd3dCmdList->ClearRenderTargetView(d3dRtvCPUDescHandle, pfClearColor/*Colors::Azure*/, 0, nullptr);
 
 
-	m_pd3dCmdList->ClearDepthStencilView(d3dDsvCPUDescHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, NULL);
+	m_pd3dCmdList->ClearDepthStencilView(d3dDsvCPUDescHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	//렌더링 코드는 이 공간에 추가
 	if (m_pScene) m_pScene->Render(m_pd3dCmdList.Get(), m_pCamera.get());
@@ -471,7 +471,7 @@ void CGameFramework::FrameAdvance()
 	//3인칭 카메라일 때 플레이어가 가리지 않게 항상 보이도록 렌더링
 #ifdef _WITH_PLAYER_TOP
 	//렌더 타겟은 그대로, 깊이 버퍼만 1.0으로 지움
-	m_pd3dCmdList->ClearDepthStencilView(d3dDsvCPUDescHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, NULL);
+	m_pd3dCmdList->ClearDepthStencilView(d3dDsvCPUDescHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 #endif
 	//3인칭 카메라일 때 플레이어 렌더링
 	if (m_pPlayer) m_pPlayer->Render(m_pd3dCmdList.Get(), m_pCamera.get());
@@ -538,13 +538,13 @@ void CGameFramework::ChangeSwapChainState()
 	WaitForGpuComplete();
 
 	BOOL bFullScreenState = FALSE;
-	HRESULT hr = m_pdxgiSwapChain->GetFullscreenState(&bFullScreenState, NULL);
+	HRESULT hr = m_pdxgiSwapChain->GetFullscreenState(&bFullScreenState, nullptr);
 	if (FAILED(hr))
 	{
 		OutputDebugString(L"GetFullscreenState Failed\n");
 	}
 
-	hr = m_pdxgiSwapChain->SetFullscreenState(!bFullScreenState, NULL);
+	hr = m_pdxgiSwapChain->SetFullscreenState(!bFullScreenState, nullptr);
 	if (FAILED(hr))
 	{
 		OutputDebugString(L"SetFullscreenState Failed\n");

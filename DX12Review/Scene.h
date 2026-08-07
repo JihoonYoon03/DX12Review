@@ -31,7 +31,8 @@ public:
 
 protected:
 	//씬은 게임 객체들의 집합이다. 게임 객체는 셰이더를 포함한다.
-	std::vector<CObjectsShader> m_vShaders;
+	//std::vector<CObjectsShader> m_vShaders;
+	std::vector<CInstancingShader> m_vShaders;
 
 	ComPtr<ID3D12RootSignature> m_pd3dGraphicsRootSignature;
 };

@@ -35,14 +35,17 @@ public:
 	void ReleaseUploadBuffers();
 
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList);
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, UINT nInstances);
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, UINT nInstances, D3D12_VERTEX_BUFFER_VIEW d3dInstancingBufferView);
+
 
 protected:
-	ComPtr<ID3D12Resource>		m_pd3dVertexBuffer = NULL;
-	ComPtr<ID3D12Resource>		m_pd3dVertexUploadBuffer = NULL;
+	ComPtr<ID3D12Resource>		m_pd3dVertexBuffer = nullptr;
+	ComPtr<ID3D12Resource>		m_pd3dVertexUploadBuffer = nullptr;
 	D3D12_VERTEX_BUFFER_VIEW	m_d3dVertexBufferView;
 
-	ComPtr<ID3D12Resource>		m_pd3dIndexBuffer = NULL;
-	ComPtr<ID3D12Resource>		m_pd3dIndexUploadBuffer = NULL;
+	ComPtr<ID3D12Resource>		m_pd3dIndexBuffer = nullptr;
+	ComPtr<ID3D12Resource>		m_pd3dIndexUploadBuffer = nullptr;
 	D3D12_INDEX_BUFFER_VIEW		m_d3dIndexBufferView;
 	
 	D3D12_PRIMITIVE_TOPOLOGY m_d3dPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;

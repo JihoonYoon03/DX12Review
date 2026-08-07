@@ -52,11 +52,11 @@ ID3D12RootSignature* CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevic
 	d3dRootSignatureDesc.NumParameters = _countof(pd3dRootParameters);
 	d3dRootSignatureDesc.pParameters = pd3dRootParameters;
 	d3dRootSignatureDesc.NumStaticSamplers = 0;
-	d3dRootSignatureDesc.pStaticSamplers = NULL;
+	d3dRootSignatureDesc.pStaticSamplers = nullptr;
 	d3dRootSignatureDesc.Flags = d3dRootSignatureFlags;
 
-	ID3DBlob* pd3dSignatureBlob = NULL;
-	ID3DBlob* pd3dErrorBlob = NULL;
+	ID3DBlob* pd3dSignatureBlob = nullptr;
+	ID3DBlob* pd3dErrorBlob = nullptr;
 	HRESULT hr = ::D3D12SerializeRootSignature(&d3dRootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &pd3dSignatureBlob, &pd3dErrorBlob);
 	if (FAILED(hr))
 	{
@@ -76,6 +76,7 @@ ID3D12RootSignature* CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevic
 void CScene::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
 	m_pd3dGraphicsRootSignature = CreateGraphicsRootSignature(pd3dDevice);
+
 	m_vShaders.push_back({});
 	m_vShaders[0].CreateShader(pd3dDevice, m_pd3dGraphicsRootSignature.Get());
 	m_vShaders[0].BuildObjects(pd3dDevice, pd3dCommandList);
@@ -85,7 +86,12 @@ void CScene::ReleaseObjects()
 {
 	if (m_pd3dGraphicsRootSignature) m_pd3dGraphicsRootSignature.Reset();
 
-	for (CObjectsShader& shader : m_vShaders)
+	/*for (CObjectsShader& shader : m_vShaders)
+	{
+		shader.ReleaseShaderVariables();
+		shader.ReleaseObjects();
+	}*/
+	for (CInstancingShader& shader : m_vShaders)
 	{
 		shader.ReleaseShaderVariables();
 		shader.ReleaseObjects();

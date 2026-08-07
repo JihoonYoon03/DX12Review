@@ -13,7 +13,7 @@ CShader::~CShader()
 D3D12_INPUT_LAYOUT_DESC CShader::CreateInputLayout()
 {
 	D3D12_INPUT_LAYOUT_DESC d3dInputLayoutDesc;
-	d3dInputLayoutDesc.pInputElementDescs = NULL;
+	d3dInputLayoutDesc.pInputElementDescs = nullptr;
 	d3dInputLayoutDesc.NumElements = 0;
 
 	return d3dInputLayoutDesc;
@@ -88,7 +88,7 @@ D3D12_SHADER_BYTECODE CShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
 {
 	D3D12_SHADER_BYTECODE d3dShaderByteCode;
 	d3dShaderByteCode.BytecodeLength = 0;
-	d3dShaderByteCode.pShaderBytecode = NULL;
+	d3dShaderByteCode.pShaderBytecode = nullptr;
 
 	return d3dShaderByteCode;
 }
@@ -98,7 +98,7 @@ D3D12_SHADER_BYTECODE CShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
 {
 	D3D12_SHADER_BYTECODE d3dShaderByteCode;
 	d3dShaderByteCode.BytecodeLength = 0;
-	d3dShaderByteCode.pShaderBytecode = NULL;
+	d3dShaderByteCode.pShaderBytecode = nullptr;
 
 	return d3dShaderByteCode;
 }
@@ -112,7 +112,7 @@ D3D12_SHADER_BYTECODE CShader::CompileShaderFromFile(const WCHAR* pszFileName, L
 	nCompileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
-	HRESULT hr = ::D3DCompileFromFile(pszFileName, NULL, NULL, pszShaderName, pszShaderProfile, nCompileFlags, 0, ppd3dShaderBlob, NULL);
+	HRESULT hr = ::D3DCompileFromFile(pszFileName, nullptr, nullptr, pszShaderName, pszShaderProfile, nCompileFlags, 0, ppd3dShaderBlob, nullptr);
 	if (FAILED(hr))
 	{
 		OutputDebugString(L"D3DCompileFromFile Failed\n");
@@ -128,7 +128,7 @@ D3D12_SHADER_BYTECODE CShader::CompileShaderFromFile(const WCHAR* pszFileName, L
 //그래픽스 파이프라인 상태 객체를 생성한다.
 void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature)
 {
-	ID3DBlob* pd3dVertexShaderBlob = NULL, * pd3dPixelShaderBlob = NULL;
+	ID3DBlob* pd3dVertexShaderBlob = nullptr, * pd3dPixelShaderBlob = nullptr;
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC d3dPipelineStateDesc;
 	::ZeroMemory(&d3dPipelineStateDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
@@ -280,38 +280,6 @@ void CObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature*
 
 void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	//가로*세로*높이가 12*12*12인 정육면체 메쉬를 생성
-	std::shared_ptr<CCubeMeshDiffused> pCubeMesh = std::make_shared<CCubeMeshDiffused>(pd3dDevice, pd3dCommandList, 12.0f, 12.0f, 12.0f);
-
-	//x, y, z축 양의 방향의 객체 개수이다.
-	int xObjects = 10, yObjects = 10, zObjects = 10, i = 0;
-
-	//x, y, z축으로 21개씩 총 21*21*21 = 9261개의 정육면체를 생성하고 배치한다.
-	m_vpObjects.reserve((xObjects * 2 + 1) * (yObjects * 2 + 1) * (zObjects * 2 + 1));
-
-	float fxPitch = 12.0f * 2.5f;
-	float fyPitch = 12.0f * 2.5f;
-	float fzPitch = 12.0f * 2.5f;
-
-	std::shared_ptr<CRotatingObject> pRotatingObject;
-	for (int x = -xObjects; x <= xObjects; ++x)
-	{
-		for (int y = -yObjects; y <= yObjects; ++y)
-		{
-			for (int z = -zObjects; z <= zObjects; ++z)
-			{
-				pRotatingObject = std::make_shared<CRotatingObject>();
-				pRotatingObject->SetMesh(pCubeMesh);
-				pRotatingObject->SetPosition(fxPitch * x, fyPitch * y, fzPitch * z);
-				pRotatingObject->SetRotationAxis(XMFLOAT3(0.0f, 1.0f, 0.0f));
-				pRotatingObject->SetRotationSpeed(10.0f * (i % 10) + 3.0f);
-				m_vpObjects.push_back(pRotatingObject);
-				pRotatingObject.reset();
-			}
-		}
-	}
-
-	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 }
 
 void CObjectsShader::ReleaseObjects()
@@ -339,4 +307,135 @@ void CObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera*
 	for (std::shared_ptr<CGameObject>& object : m_vpObjects) {
 		object->Render(pd3dCommandList, pCamera);
 	}
+}
+
+
+
+//================================================================================================
+//================================================================================================
+//================================================================================================
+CInstancingShader::CInstancingShader()
+{
+}
+
+CInstancingShader::~CInstancingShader()
+{
+}
+
+D3D12_INPUT_LAYOUT_DESC CInstancingShader::CreateInputLayout()
+{
+	UINT nInputElementDescs = 7;
+	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
+
+	//정점 정보를 위한 입력 원소이다.
+	pd3dInputElementDescs[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	pd3dInputElementDescs[1] = { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	//인스턴싱 정보를 위한 입력 원소이다.
+	pd3dInputElementDescs[2] = { "WORLDMATRIX", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	pd3dInputElementDescs[3] = { "WORLDMATRIX", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	pd3dInputElementDescs[4] = { "WORLDMATRIX", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	pd3dInputElementDescs[5] = { "WORLDMATRIX", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	pd3dInputElementDescs[6] = { "INSTANCECOLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 64, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+
+	D3D12_INPUT_LAYOUT_DESC d3dInputLayoutDesc;
+	d3dInputLayoutDesc.pInputElementDescs = pd3dInputElementDescs;
+	d3dInputLayoutDesc.NumElements = nInputElementDescs;
+
+	return d3dInputLayoutDesc;
+}
+
+D3D12_SHADER_BYTECODE CInstancingShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSInstancing", "vs_5_1", ppd3dShaderBlob);
+}
+
+D3D12_SHADER_BYTECODE CInstancingShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSInstancing", "ps_5_1", ppd3dShaderBlob);
+}
+
+void CInstancingShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSiganture)
+{
+	m_vpd3dPipelineStates.push_back({});
+
+	CShader::CreateShader(pd3dDevice, pd3dGraphicsRootSiganture);
+}
+
+void CInstancingShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+{
+	//인스턴스 정보를 저장할 정점 버퍼를, 업로드 힙 유형으로 생성한다.
+	m_pd3dcbGameObjects = ::CreateBufferResource(pd3dDevice, pd3dCommandList, nullptr, sizeof(VS_VB_INSTANCE) * m_vpObjects.size(), D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, nullptr);
+
+	//정점 버퍼(업로드 힙)에 대한 포인터를 저장한다.
+	m_pd3dcbGameObjects->Map(0, nullptr, (void**)&m_pcbMappedGameObjects);
+
+	//정점 버퍼에 대한 뷰를 생성한다.
+	m_d3dInstancingBufferView.BufferLocation = m_pd3dcbGameObjects->GetGPUVirtualAddress();
+	m_d3dInstancingBufferView.StrideInBytes = sizeof(VS_VB_INSTANCE);
+	m_d3dInstancingBufferView.SizeInBytes = sizeof(VS_VB_INSTANCE) * m_vpObjects.size();
+}
+
+void CInstancingShader::ReleaseShaderVariables()
+{
+	if (m_pd3dcbGameObjects) m_pd3dcbGameObjects->Unmap(0, nullptr);
+	if (m_pd3dcbGameObjects) m_pd3dcbGameObjects.Reset();
+}
+
+void CInstancingShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
+{
+	for (int j = 0; j < m_vpObjects.size(); j++)
+	{
+		m_pcbMappedGameObjects[j].m_xmf4Color = (j % 2) ? XMFLOAT4(0.5f, 0.0f, 0.0f, 0.0f) : XMFLOAT4(0.0f, 0.0f, 0.5f, 0.0f);
+		XMStoreFloat4x4(&m_pcbMappedGameObjects[j].m_xmf4x4Transform, XMMatrixTranspose(XMLoadFloat4x4(&m_vpObjects[j]->GetWorldMatrix())));
+	}
+}
+
+void CInstancingShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+{
+	int xObjects = 10, yObjects = 10, zObjects = 10, i = 0;
+	
+	m_vpObjects.reserve((xObjects * 2 + 1) * (yObjects * 2 + 1) * (zObjects * 2 + 1));
+
+	float fxPitch = 12.0f * 2.5f;
+	float fyPitch = 12.0f * 2.5f;
+	float fzPitch = 12.0f * 2.5f;
+
+	std::shared_ptr<CRotatingObject> pRotatingObject;
+	for (int x = -xObjects; x <= xObjects; x++)
+	{
+		for (int y = -yObjects; y <= yObjects; y++)
+		{
+			for (int z = -zObjects; z <= zObjects; z++)
+			{
+				pRotatingObject = std::make_shared<CRotatingObject>();
+				pRotatingObject->SetPosition(fxPitch * x, fyPitch * y, fzPitch * z);
+				pRotatingObject->SetRotationAxis(XMFLOAT3(0.0f, 1.0f, 0.0f));
+				pRotatingObject->SetRotationSpeed(10.0f * (i % 10));
+				m_vpObjects.push_back(std::move(pRotatingObject));
+			}
+		}
+	}
+
+	//인스턴싱을 사용하여 렌더링하기 위해, 하나의 게임 객체만 메쉬를 가진다.
+	std::shared_ptr<CCubeMeshDiffused> pCubeMesh = std::make_shared<CCubeMeshDiffused>(pd3dDevice, pd3dCommandList, 12.0f, 12.0f, 12.0f);
+	m_vpObjects[0]->SetMesh(pCubeMesh);
+
+	//인스턴싱을 위한 정점 버퍼와 뷰를 생성한다
+	CreateShaderVariables(pd3dDevice, pd3dCommandList);
+}
+
+void CInstancingShader::ReleaseObjects()
+{
+	CObjectsShader::ReleaseObjects();
+}
+
+void CInstancingShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
+{
+	CShader::Render(pd3dCommandList, pCamera);
+
+	//모든 게임 객체의 인스턴싱 데이터를 버퍼에 저장한다.
+	UpdateShaderVariables(pd3dCommandList);
+
+	//하나의 정점 데이터를 사용하여 모든 게임 객체(인스턴스)들을 렌더링한다
+	m_vpObjects[0]->Render(pd3dCommandList, pCamera, m_vpObjects.size(), m_d3dInstancingBufferView);
 }

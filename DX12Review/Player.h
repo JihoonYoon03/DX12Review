@@ -62,12 +62,12 @@ public:
 
 	//카메라를 변경하기 위하여 호출하는 함수이다.
 	std::shared_ptr<CCamera> OnChangeCamera(DWORD nNewCameraMode, DWORD nCurrentCameraMode);
-	virtual std::shared_ptr<CCamera> ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed) { return NULL; }
+	virtual std::shared_ptr<CCamera> ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed) { return nullptr; }
 
 	//플레이어의 위치와 회전축으로부터 월드 변환 행렬을 생성하는 함수
 	virtual void OnPrepareRender();
 	//플레이어의 카메라가 3인칭 카메라일 때 플레이어 메쉬를 렌더링
-	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera = NULL);
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera = nullptr);
 
 protected:
 	//플레이어의 위치 벡터, x, y, z축 벡터

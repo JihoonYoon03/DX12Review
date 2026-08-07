@@ -9,6 +9,13 @@ struct CB_GAMEOBJECT_INFO
 	XMFLOAT4X4 m_xmf4x4World;
 };
 
+//인스턴스 정보(월드 변환 행렬, 객체 색상)를 위한 구조체이다.
+struct VS_VB_INSTANCE
+{
+	XMFLOAT4X4	m_xmf4x4Transform;
+	XMFLOAT4	m_xmf4Color;
+};
+
 //셰이더 소스 코드를 컴파일하고 그래픽스 상태 객체(PSO)를 생성한다.
 class CShader
 {
@@ -78,4 +85,33 @@ public:
 
 protected:
 	std::vector<std::shared_ptr<CGameObject>> m_vpObjects;
+};
+
+class CInstancingShader : public CObjectsShader
+{
+public:
+	CInstancingShader();
+	virtual ~CInstancingShader();
+
+	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
+
+	virtual void CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature);
+
+	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
+	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList);
+	virtual void ReleaseShaderVariables();
+
+	virtual void BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
+	virtual void ReleaseObjects();
+
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera);
+
+protected:
+	//인스턴스 정점 버퍼와 정점 버퍼 뷰이다.
+	ComPtr<ID3D12Resource>			m_pd3dcbGameObjects;
+	VS_VB_INSTANCE*					m_pcbMappedGameObjects = nullptr;
+
+	D3D12_VERTEX_BUFFER_VIEW		m_d3dInstancingBufferView;
 };

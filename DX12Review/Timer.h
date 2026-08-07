@@ -13,7 +13,7 @@ public:
 	//타이머의 시간을 갱신
 	void Tick(float fLockFPS = 0.0f);
 	//프레임레이트를 반환
-	unsigned long GetFrameRate(LPTSTR lpszString = NULL, int nCharacters = 0);
+	unsigned long GetFrameRate(LPTSTR lpszString = nullptr, int nCharacters = 0);
 	//프레임의 평균 경과 시간을 반환
 	float GetTimeElapsed();
 
