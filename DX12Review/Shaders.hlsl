@@ -62,7 +62,7 @@ struct VS_INSTANCING_OUTPUT
     float4 color : COLOR;
 };
 
-VS_OUTPUT VSInstancing(VS_INSTANCING_INPUT input)
+VS_INSTANCING_OUTPUT VSInstancing(VS_INSTANCING_INPUT input)
 {
     VS_INSTANCING_OUTPUT output;
     

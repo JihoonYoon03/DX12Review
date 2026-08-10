@@ -29,10 +29,14 @@ public:
 	ID3D12RootSignature* CreateGraphicsRootSignature(ID3D12Device* pd3dDevice);
 	ID3D12RootSignature* GetGraphicsrootSignature();
 
+	std::shared_ptr<CHeightMapTerrain>& GetTerrain() { return m_pTerrain; }
+
 protected:
 	//씬은 게임 객체들의 집합이다. 게임 객체는 셰이더를 포함한다.
-	//std::vector<CObjectsShader> m_vShaders;
-	std::vector<CInstancingShader> m_vShaders;
+	std::vector<CObjectsShader> m_vShaders;
+	//std::vector<CInstancingShader> m_vShaders;
 
 	ComPtr<ID3D12RootSignature> m_pd3dGraphicsRootSignature;
+
+	std::shared_ptr<CHeightMapTerrain> m_pTerrain;
 };

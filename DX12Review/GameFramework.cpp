@@ -333,8 +333,9 @@ void CGameFramework::BuildObjects()
 	m_pScene = std::make_unique<CScene>();
 	m_pScene->BuildObjects(m_pd3dDevice.Get(), m_pd3dCmdList.Get());
 
-	std::shared_ptr<CAirplanePlayer> pAirplanePlayer = std::make_shared<CAirplanePlayer>(m_pd3dDevice.Get(), m_pd3dCmdList.Get(), m_pScene->GetGraphicsrootSignature());
-	m_pPlayer = pAirplanePlayer;
+	m_pPlayer = std::make_shared<CTerrainPlayer>(m_pd3dDevice.Get(), m_pd3dCmdList.Get(), m_pScene->GetGraphicsrootSignature(), m_pScene->GetTerrain().get(), 1);
+	/*std::shared_ptr<CAirplanePlayer> pAirplanePlayer = std::make_shared<CAirplanePlayer>(m_pd3dDevice.Get(), m_pd3dCmdList.Get(), m_pScene->GetGraphicsrootSignature());
+	m_pPlayer = pAirplanePlayer;*/
 	m_pCamera = m_pPlayer->GetCamera();
 
 	//씬 객체를 생성하기 위하여 필요한 그래픽 명령 리스트들을 명령 큐에 추가한다.
