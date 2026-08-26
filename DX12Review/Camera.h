@@ -82,6 +82,11 @@ public:
 	//3인칭 카메라에서 카메라가 바라보는 지점을 설정한다. 일반적으로 플레이어
 	virtual void SetLookAt(XMFLOAT3 xmf3LookAt) {}
 
+	//절두체를 생성한다.
+	void GenerateFrustum();
+	//바운딩 박스가 절두체에 포함되는가를 검사한다..
+	bool IsInFrustum(BoundingOrientedBox& xmBoundingBox);
+
 protected:
 	//카메라 위치 벡터
 	XMFLOAT3		m_xmf3Position;
@@ -117,6 +122,8 @@ protected:
 
 	//카메라를 갖는 플레이어에 대한 포인터
 	CPlayer*		m_pPlayer;
+
+	BoundingFrustum	m_xmFrustum;
 };
 
 class CSpaceShipCamera : public CCamera

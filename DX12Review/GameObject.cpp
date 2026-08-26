@@ -60,13 +60,14 @@ void CGameObject::OnPrepareRender()
 
 void CGameObject::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
 {
-	OnPrepareRender();
+	if (IsVisible(pCamera))
+	{
+		UpdateShaderVariables(pd3dCommandList);
 
-	UpdateShaderVariables(pd3dCommandList);
+		if (m_pShader.get()) m_pShader->Render(pd3dCommandList, pCamera);
 
-	if (m_pShader.get()) m_pShader->Render(pd3dCommandList, pCamera);
-
-	if (m_pMesh.get()) m_pMesh->Render(pd3dCommandList);
+		if (m_pMesh.get()) m_pMesh->Render(pd3dCommandList);
+	}
 }
 
 void CGameObject::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
@@ -145,6 +146,20 @@ void CGameObject::Rotate(float fPitch, float fYaw, float fRoll)
 {
 	XMMATRIX mtxRotate = XMMatrixRotationRollPitchYaw(XMConvertToRadians(fPitch), XMConvertToRadians(fYaw), XMConvertToRadians(fRoll));
 	m_xmf4x4World = Matrix4x4::Multiply(mtxRotate, m_xmf4x4World);
+}
+
+bool CGameObject::IsVisible(CCamera* pCamera)
+{
+	OnPrepareRender();
+
+	bool bIsVisible = false;
+	BoundingOrientedBox xmBoundingBox = m_pMesh->GetBoundingBox();
+	
+	//모델 좌표계의 바운딩 박스를 월드 좌표계로 변환한다.
+	xmBoundingBox.Transform(xmBoundingBox, XMLoadFloat4x4(&m_xmf4x4World));
+	if (pCamera) bIsVisible = pCamera->IsInFrustum(xmBoundingBox);
+
+	return bIsVisible;
 }
 
 //================================================================================================

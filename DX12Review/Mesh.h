@@ -35,6 +35,8 @@ public:
 	void ReleaseUploadBuffers();
 
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList);
+	
+	BoundingOrientedBox GetBoundingBox() { return m_xmBoundingBox; }
 
 protected:
 	ComPtr<ID3D12Resource>		m_pd3dVertexBuffer = NULL;
@@ -45,6 +47,8 @@ protected:
 	ComPtr<ID3D12Resource>		m_pd3dIndexUploadBuffer = NULL;
 	D3D12_INDEX_BUFFER_VIEW		m_d3dIndexBufferView;
 	
+	BoundingOrientedBox			m_xmBoundingBox;
+
 	D3D12_PRIMITIVE_TOPOLOGY m_d3dPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	UINT m_nSlot = 0;
 	UINT m_nVertices = 0;
