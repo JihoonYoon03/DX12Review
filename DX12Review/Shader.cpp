@@ -282,6 +282,9 @@ void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsComman
 {
 	//가로*세로*높이가 12*12*12인 정육면체 메쉬를 생성
 	std::shared_ptr<CCubeMeshDiffused> pCubeMesh = std::make_shared<CCubeMeshDiffused>(pd3dDevice, pd3dCommandList, 12.0f, 12.0f, 12.0f);
+	
+	//구 메쉬를 생성한다.
+	std::shared_ptr<CSphereMeshDiffused> pSphereMesh = std::make_shared<CSphereMeshDiffused>(pd3dDevice, pd3dCommandList, 6.0f, 20, 20);
 
 	//x, y, z축 양의 방향의 객체 개수이다.
 	int xObjects = 10, yObjects = 10, zObjects = 10, i = 0;
@@ -301,12 +304,13 @@ void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsComman
 			for (int z = -zObjects; z <= zObjects; ++z)
 			{
 				pRotatingObject = std::make_shared<CRotatingObject>();
-				pRotatingObject->SetMesh(pCubeMesh);
+				//직육면체와 구 메쉬를 교대로 배치한다. 
+				pRotatingObject->SetMesh((i % 2) ? std::static_pointer_cast<CMesh>(pCubeMesh) : std::static_pointer_cast<CMesh>(pSphereMesh));
 				pRotatingObject->SetPosition(fxPitch * x, fyPitch * y, fzPitch * z);
 				pRotatingObject->SetRotationAxis(XMFLOAT3(0.0f, 1.0f, 0.0f));
-				pRotatingObject->SetRotationSpeed(10.0f * (i % 10) + 3.0f);
+				pRotatingObject->SetRotationSpeed(10.0f * (i % 10));
 				m_vpObjects.push_back(pRotatingObject);
-				pRotatingObject.reset();
+				++i;
 			}
 		}
 	}
@@ -339,4 +343,22 @@ void CObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera*
 	for (std::shared_ptr<CGameObject>& object : m_vpObjects) {
 		object->Render(pd3dCommandList, pCamera);
 	}
+}
+
+CGameObject* CObjectsShader::PickObjectByRayIntersection(XMFLOAT3& xmf3PickPosition, XMFLOAT4X4& xmf4x4View, float* pfNearHitDistance)
+{
+	int nIntersected = 0;
+	*pfNearHitDistance = FLT_MAX;
+	float fHitDistance = FLT_MAX;
+	CGameObject* pSelectedObject = NULL;
+	for (auto& object : m_vpObjects)
+	{
+		nIntersected = object->PickObjectByRayIntersection(xmf3PickPosition, xmf4x4View, &fHitDistance);
+		if ((nIntersected > 0) && (fHitDistance < *pfNearHitDistance))
+		{
+			*pfNearHitDistance = fHitDistance;
+			pSelectedObject = object.get();
+		}
+	}
+	return pSelectedObject;
 }

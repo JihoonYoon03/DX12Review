@@ -29,6 +29,9 @@ public:
 	ID3D12RootSignature* CreateGraphicsRootSignature(ID3D12Device* pd3dDevice);
 	ID3D12RootSignature* GetGraphicsrootSignature();
 
+	//씬의 모든 게임 객체들에 대한 마우스 픽킹을 수행한다. 
+	CGameObject* PickObjectPointedByCursor(int xClient, int yClient, CCamera *pCamera);
+
 protected:
 	//씬은 게임 객체들의 집합이다. 게임 객체는 셰이더를 포함한다.
 	std::vector<CObjectsShader> m_vShaders;

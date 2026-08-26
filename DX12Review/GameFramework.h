@@ -48,6 +48,8 @@ public:
 	void OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	LRESULT CALLBACK OnProcessingWindowMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 
+	void ProcessSelectedObject(DWORD dwDirection, float cxDelta, float cyDelta);
+
 	std::shared_ptr<CCamera> m_pCamera;
 
 	std::shared_ptr<CPlayer> m_pPlayer;
@@ -111,5 +113,7 @@ private:
 
 	//씬을 위한 멤버 변수
 	std::unique_ptr<CScene> m_pScene;
+
+	CGameObject* m_pSelectedObject = NULL;
 };
 

@@ -38,6 +38,9 @@ public:
 	
 	BoundingOrientedBox GetBoundingBox() { return m_xmBoundingBox; }
 
+	//광선과 메쉬의 교차를 검사하고 교차하는 횟수와 거리를 반환하는 함수
+	int CheckRayIntersection(XMFLOAT3& xmRayPosition, XMFLOAT3& xmRayDirection, float* pfNearHitDistance);
+
 protected:
 	ComPtr<ID3D12Resource>		m_pd3dVertexBuffer = NULL;
 	ComPtr<ID3D12Resource>		m_pd3dVertexUploadBuffer = NULL;
@@ -61,6 +64,11 @@ protected:
 	UINT m_nStartIndex = 0;
 	//인덱스 버퍼의 인덱스에 더해질 인덱스
 	int m_nBaseVertex = 0;
+
+	//정점을 픽킹을 위하여 저장(정점 버퍼를 매핑하여 읽지 않아도 되도록)
+	CDiffusedVertex* m_pVertices = NULL;
+	//메쉬의 인덱스를 저장한다(인덱스 버퍼를 Map하여 읽지 않아도 되도록)
+	UINT* m_pnIndices = NULL;
 };
 
 class CTriangleMesh : public CMesh
@@ -83,4 +91,11 @@ class CAirplaneMeshDiffused : public CMesh
 public:
 	CAirplaneMeshDiffused(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, float fWidth = 20.0f, float fHeight = 20.0f, float fDepth = 4.0f, XMFLOAT4 xmf4Color = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f));
 	virtual ~CAirplaneMeshDiffused();
+};
+
+class CSphereMeshDiffused : public CMesh
+{
+public:
+	CSphereMeshDiffused(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, float fRadius = 2.0f, int nSlices = 20, int nStacks = 20);
+	virtual ~CSphereMeshDiffused();
 };

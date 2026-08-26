@@ -392,16 +392,24 @@ void CGameFramework::ProcessInput()
 	//마우스 또는 키 입력이 있으면 플레이어를 이동하거나 회전함
 	if ((dwDirection != 0) || (cxDelta != 0.0f) || (cyDelta != 0.0f))
 	{
-		if (cxDelta || cyDelta)
+		//픽킹으로 선택한 게임 객체가 있으면 키보드를 누르거나 마우스를 움직이면 게임 개체를 이동 또는 회전한다.
+		if (m_pSelectedObject)
 		{
-			//cxDelta = Yaw, cyDelta = Pitch
-			if (pKeyBuffer[VK_RBUTTON] & 0xF0)
-				m_pPlayer->Rotate(cyDelta, 0.0f, -cxDelta);
-			else
-				m_pPlayer->Rotate(cyDelta, cxDelta, 0.0f);
+			ProcessSelectedObject(dwDirection, cxDelta, cyDelta);
 		}
-		//플레이어를 dwDirection 방향으로 이동(속도 벡터 변경). 이동 속력은 50/sec로 가정
-		if (dwDirection) m_pPlayer->Move(dwDirection, 50.0f * m_GameTimer.GetTimeElapsed(), true);
+		else
+		{
+			if (cxDelta || cyDelta)
+			{
+				//cxDelta = Yaw, cyDelta = Pitch
+				if (pKeyBuffer[VK_RBUTTON] & 0xF0)
+					m_pPlayer->Rotate(cyDelta, 0.0f, -cxDelta);
+				else
+					m_pPlayer->Rotate(cyDelta, cxDelta, 0.0f);
+			}
+			//플레이어를 dwDirection 방향으로 이동(속도 벡터 변경). 이동 속력은 50/sec로 가정
+			if (dwDirection) m_pPlayer->Move(dwDirection, 50.0f * m_GameTimer.GetTimeElapsed(), true);
+		}
 	}
 
 	//플레이어를 실제로 이동 및 카메라 갱신. 중력과 마찰력의 영향을 속도 벡터에 적용
@@ -605,6 +613,8 @@ void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM
 	{
 	case WM_LBUTTONDOWN:
 	case WM_RBUTTONDOWN:
+		//마우스가 눌려지면 마우스 픽킹을 하여 선택한 게임 객체를 찾는다.
+		m_pSelectedObject = m_pScene->PickObjectPointedByCursor(LOWORD(lParam), HIWORD(lParam), m_pCamera.get());
 		//마우스 캡쳐 후 현재 마우스 위치를 가져온다
 		::SetCapture(hWnd);
 		::GetCursorPos(&m_ptOldCursorPos);
@@ -676,5 +686,23 @@ LRESULT CGameFramework::OnProcessingWindowMessage(HWND hWnd, UINT nMessageID, WP
 		break;
 	}
 	return 0;
+}
+
+void CGameFramework::ProcessSelectedObject(DWORD dwDirection, float cxDelta, float cyDelta)
+{
+	//픽킹으로 선택한 게임 객체가 있으면 키보드를 누르거나 마우스를 움직이면 게임 개체를 이동 또는 회전한다. 
+	if (dwDirection != 0)
+	{
+		if (dwDirection & DIR_FORWARD) m_pSelectedObject->MoveForward(+1.0f);
+		if (dwDirection & DIR_BACKWARD) m_pSelectedObject->MoveForward(-1.0f);
+		if (dwDirection & DIR_LEFT) m_pSelectedObject->MoveStrafe(+1.0f);
+		if (dwDirection & DIR_RIGHT) m_pSelectedObject->MoveStrafe(-1.0f);
+		if (dwDirection & DIR_UP) m_pSelectedObject->MoveUp(+1.0f);
+		if (dwDirection & DIR_DOWN) m_pSelectedObject->MoveUp(-1.0f);
+	}
+	else if ((cxDelta != 0.0f) || (cyDelta != 0.0f))
+	{
+		m_pSelectedObject->Rotate(cyDelta, cxDelta, 0.0f);
+	}
 }
 
