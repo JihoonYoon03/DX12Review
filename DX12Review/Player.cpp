@@ -292,7 +292,7 @@ void CPlayer::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamer
 	//3인칭이면 플레이어 객체 렌더링
 	if (nCameraMode == THIRD_PERSON_CAMERA)
 	{
-		if (m_pShader) m_pShader->Render(pd3dCommandList, pCamera);
+		//if (m_pShader) m_pShader->Render(pd3dCommandList, pCamera);
 		CGameObject::Render(pd3dCommandList, pCamera);
 	}
 }
@@ -305,21 +305,20 @@ void CPlayer::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamer
 CAirplanePlayer::CAirplanePlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, ID3D12RootSignature* pd3dGraphicsRootSignature)
 {
 	//비행기 메쉬를 생성
-	std::shared_ptr<CMesh> pAirplaneMesh = std::make_shared<CAirplaneMeshDiffused>(pd3dDevice, pd3dCommandList, 20.0f, 20.0f, 4.0f, XMFLOAT4(0.0f, 0.5f, 0.0f, 0.0f));
-
+	std::shared_ptr<CAirplaneMeshDiffused> pAirplaneMesh = std::make_shared<CAirplaneMeshDiffused>(pd3dDevice, pd3dCommandList, 20.0f, 20.0f, 4.0f, XMFLOAT4(0.0f, 0.5f, 0.0f, 0.0f));
 	SetMesh(pAirplaneMesh);
+
 	//플레이어의 카메라를 우주선 카메라로 변경한다
 	m_pCamera = ChangeCamera(SPACESHIP_CAMERA, 0.0f);
+	SetPosition(XMFLOAT3(0.0f, 0.0f, -50.0f));
 	
 	//플레이어를 위한 셰이더 변수를 생성한다.
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 
-	//플레이어의 위치를 설정한다
-	SetPosition(XMFLOAT3(0.0f, 0.0f, -50.0f));
-
 	//플레이어 메쉬를 렌더링할 때 사용할 셰이더를 생성한다.
 	std::shared_ptr<CPlayerShader> pShader = std::make_shared<CPlayerShader>();
 	pShader->CreateShader(pd3dDevice, pd3dGraphicsRootSignature);
+	pShader->CreateShaderVariables(pd3dDevice, pd3dCommandList);
 	SetShader(pShader);
 }
 

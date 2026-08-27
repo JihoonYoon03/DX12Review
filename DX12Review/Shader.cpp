@@ -112,7 +112,8 @@ D3D12_SHADER_BYTECODE CShader::CompileShaderFromFile(const WCHAR* pszFileName, L
 	nCompileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
-	HRESULT hr = ::D3DCompileFromFile(pszFileName, NULL, NULL, pszShaderName, pszShaderProfile, nCompileFlags, 0, ppd3dShaderBlob, NULL);
+	ID3DBlob* pd3dErrorBlob = NULL;
+	HRESULT hr = ::D3DCompileFromFile(pszFileName, NULL, D3D_COMPILE_STANDARD_FILE_INCLUDE, pszShaderName, pszShaderProfile, nCompileFlags, 0, ppd3dShaderBlob, &pd3dErrorBlob);
 	if (FAILED(hr))
 	{
 		OutputDebugString(L"D3DCompileFromFile Failed\n");
@@ -149,7 +150,9 @@ void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGr
 	HRESULT hr = pd3dDevice->CreateGraphicsPipelineState(&d3dPipelineStateDesc, IID_PPV_ARGS(m_vpd3dPipelineStates[0].GetAddressOf()));
 	if (FAILED(hr))
 	{
-		OutputDebugString(L"PSO Creation Failed");
+		WCHAR buffer[128];
+		swprintf_s(buffer, L"PSO Creation Failed: 0x%08X\n", hr);
+		OutputDebugString(buffer);
 	}
 
 	if (pd3dVertexShaderBlob) pd3dVertexShaderBlob->Release();
@@ -166,12 +169,12 @@ void CShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
 }
 
-void CShader::UpdateShaderVariable(ID3D12GraphicsCommandList* pd3dCommandList, XMFLOAT4X4* pxmf4x4World)
-{
-	XMFLOAT4X4 xmf4x4World;
-	XMStoreFloat4x4(&xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(pxmf4x4World)));
-	pd3dCommandList->SetGraphicsRoot32BitConstants(0, 16, &xmf4x4World, 0);
-}
+//void CShader::UpdateShaderVariable(ID3D12GraphicsCommandList* pd3dCommandList, XMFLOAT4X4* pxmf4x4World)
+//{
+//	XMFLOAT4X4 xmf4x4World;
+//	XMStoreFloat4x4(&xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(pxmf4x4World)));
+//	pd3dCommandList->SetGraphicsRoot32BitConstants(0, 16, &xmf4x4World, 0);
+//}
 
 void CShader::ReleaseShaderVariables()
 {
@@ -218,12 +221,12 @@ D3D12_INPUT_LAYOUT_DESC CPlayerShader::CreateInputLayout()
 
 D3D12_SHADER_BYTECODE CPlayerShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
 {
-	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSDiffused", "vs_5_1", ppd3dShaderBlob);
+	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSPlayer", "vs_5_1", ppd3dShaderBlob);
 }
 
 D3D12_SHADER_BYTECODE CPlayerShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
 {
-	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSDiffused", "ps_5_1", ppd3dShaderBlob);
+	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSPlayer", "ps_5_1", ppd3dShaderBlob);
 }
 
 void CPlayerShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature)
@@ -231,6 +234,37 @@ void CPlayerShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* 
 	m_vpd3dPipelineStates.push_back({});
 
 	CShader::CreateShader(pd3dDevice, pd3dGraphicsRootSignature);
+}
+
+void CPlayerShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+{
+	UINT ncbElementBytes = ((sizeof(CB_PLAYER_INFO) + 255) & ~255);
+	m_pd3dcbPlayer = ::CreateBufferResource(pd3dDevice, pd3dCommandList, NULL, ncbElementBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, NULL);
+	m_pd3dcbPlayer->Map(0, NULL, (void**)&m_pcbMappedPlayer);
+}
+
+void CPlayerShader::ReleaseShaderVariables()
+{
+	if (m_pd3dcbPlayer)
+	{
+		m_pd3dcbPlayer->Unmap(0, NULL);
+		m_pd3dcbPlayer->Release();
+	}
+}
+
+void CPlayerShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, XMFLOAT4X4* pxmf4x4World)
+{
+	XMFLOAT4X4 xmf4x4World;
+	XMStoreFloat4x4(&xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(pxmf4x4World)));
+	::memcpy(&m_pcbMappedPlayer->m_xmf4x4World, &xmf4x4World, sizeof(XMFLOAT4X4));
+}
+
+void CPlayerShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
+{
+	CShader::Render(pd3dCommandList, pCamera);
+
+	D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress = m_pd3dcbPlayer->GetGPUVirtualAddress();
+	pd3dCommandList->SetGraphicsRootConstantBufferView(0, d3dGpuVirtualAddress);
 }
 
 
@@ -252,7 +286,7 @@ D3D12_INPUT_LAYOUT_DESC CObjectsShader::CreateInputLayout()
 	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs = new D3D12_INPUT_ELEMENT_DESC[nInputElementsDesc];
 
 	pd3dInputElementDescs[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	pd3dInputElementDescs[1] = { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	pd3dInputElementDescs[1] = { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
 	D3D12_INPUT_LAYOUT_DESC d3dInputLayoutDesc;
 	d3dInputLayoutDesc.pInputElementDescs = pd3dInputElementDescs;
@@ -263,12 +297,12 @@ D3D12_INPUT_LAYOUT_DESC CObjectsShader::CreateInputLayout()
 
 D3D12_SHADER_BYTECODE CObjectsShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
 {
-	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSDiffused", "vs_5_1", ppd3dShaderBlob);
+	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSLighting", "vs_5_1", ppd3dShaderBlob);
 }
 
 D3D12_SHADER_BYTECODE CObjectsShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
 {
-	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSDiffused", "ps_5_1", ppd3dShaderBlob);
+	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSLighting", "ps_5_1", ppd3dShaderBlob);
 }
 
 void CObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature)
@@ -281,7 +315,7 @@ void CObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature*
 void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
 	//가로*세로*높이가 12*12*12인 정육면체 메쉬를 생성
-	std::shared_ptr<CCubeMeshDiffused> pCubeMesh = std::make_shared<CCubeMeshDiffused>(pd3dDevice, pd3dCommandList, 12.0f, 12.0f, 12.0f);
+	std::shared_ptr<CCubeMeshIlluminated> pCubeMesh = std::make_shared<CCubeMeshIlluminated>(pd3dDevice, pd3dCommandList, 12.0f, 12.0f, 12.0f);
 
 	//x, y, z축 양의 방향의 객체 개수이다.
 	int xObjects = 10, yObjects = 10, zObjects = 10, i = 0;
@@ -301,12 +335,12 @@ void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsComman
 			for (int z = -zObjects; z <= zObjects; ++z)
 			{
 				pRotatingObject = std::make_shared<CRotatingObject>();
+				pRotatingObject->SetMaterial(i % MAX_MATERIALS);
 				pRotatingObject->SetMesh(pCubeMesh);
 				pRotatingObject->SetPosition(fxPitch * x, fyPitch * y, fzPitch * z);
 				pRotatingObject->SetRotationAxis(XMFLOAT3(0.0f, 1.0f, 0.0f));
-				pRotatingObject->SetRotationSpeed(10.0f * (i % 10) + 3.0f);
+				pRotatingObject->SetRotationSpeed(10.0f * (i % 10));
 				m_vpObjects.push_back(pRotatingObject);
-				pRotatingObject.reset();
 			}
 		}
 	}
@@ -336,7 +370,49 @@ void CObjectsShader::ReleaseUploadBuffers()
 void CObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
 {
 	CShader::Render(pd3dCommandList, pCamera);
+
+	UpdateShaderVariables(pd3dCommandList);
+
+	UINT ncbGameObjectBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
+	D3D12_GPU_VIRTUAL_ADDRESS d3dcbGameObjectGpuVirtualAddress = m_pd3dcbGameObjects->GetGPUVirtualAddress();
+
+	int j = 0;
 	for (std::shared_ptr<CGameObject>& object : m_vpObjects) {
+		pd3dCommandList->SetGraphicsRootConstantBufferView(2, d3dcbGameObjectGpuVirtualAddress + (ncbGameObjectBytes * j));
 		object->Render(pd3dCommandList, pCamera);
+		++j;
+	}
+}
+
+//객체 정보를 저장하기 위한 리소스를 생성, 그 포인터를 가져온다
+void CObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+{
+	UINT ncbGameObjectBytes = ((sizeof(CB_PLAYER_INFO) + 255) & ~255);	//256의 배수
+	m_pd3dcbGameObjects = ::CreateBufferResource(pd3dDevice, pd3dCommandList, NULL, ncbGameObjectBytes * m_vpObjects.size(), D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, NULL);
+
+	m_pd3dcbGameObjects->Map(0, NULL, (void**)&m_pcbMappedGameObjects);
+}
+
+//객체의 월드변환 행렬과 재질 번호를 상수 버퍼에 쓴다.
+void CObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
+{
+	UINT ncbGameObjectBytes = ((sizeof(CB_PLAYER_INFO) + 255) & ~255);	//256의 배수
+	XMFLOAT4X4 xmf4x4World;
+	int j = 0;
+	for (std::shared_ptr<CGameObject>& object : m_vpObjects) {
+		XMStoreFloat4x4(&xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&object->GetWorldMatrix())));
+		CB_GAMEOBJECT_INFO* pbMappedcbGameObject = (CB_GAMEOBJECT_INFO*)(m_pcbMappedGameObjects + (j * ncbGameObjectBytes));
+		::memcpy(&pbMappedcbGameObject->m_xmf4x4World, &xmf4x4World, sizeof(XMFLOAT4X4));
+		pbMappedcbGameObject->m_nMaterial = object->GetMaterial()->m_nReflection;
+		j++;
+	}
+}
+
+void CObjectsShader::ReleaseShaderVariables()
+{
+	if (m_pd3dcbGameObjects)
+	{
+		m_pd3dcbGameObjects->Unmap(0, NULL);
+		m_pd3dcbGameObjects->Release();
 	}
 }

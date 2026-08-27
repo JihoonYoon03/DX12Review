@@ -1,50 +1,249 @@
+#pragma once
+#include "Light.hlsl"
+
 //게임 객체의 정보를 위한 상수 버퍼를 선언한다.
-cbuffer cbGameObjectInfo : register(b0)
+//플레이어 객체의 데이터를 위한 상수 버퍼
+cbuffer cbPlayerInfo : register(b0)
 {
-    matrix gmtxWorld : packoffset(c0);
+    matrix gmtxPlayerWorld : packoffset(c0);
 };
 
+//카메라 객체의 데이터를 위한 상수 버퍼
 cbuffer cbCameraInfo : register(b1)
 {
     matrix gmtxView : packoffset(c0);
     matrix gmtxProjection : packoffset(c4);
+    float3 gvCameraPosition : packoffset(c8);
 };
 
+//게임 객체의 데이터를 위한 상수 버퍼
+cbuffer cbGameObjectInfo : register(b2)
+{
+    matrix gmtxGameObject : packoffset(c0);
+    uint gnMaterial : packoffset(c4);
+}
+
 //정점 셰이더의 입력을 위한 구조체를 선언한다.
-struct VS_INPUT
+struct VS_DIFFUSED_INPUT
 {
     float3 position : POSITION;
     float4 color : COLOR;
 };
 
 //정점 셰이더의 출력을 위한 구조체를 선언한다.
-struct VS_OUTPUT
+struct VS_DIFFUSED_OUTPUT
 {
     float4 position : SV_Position;
     float4 color : COLOR;
 };
 
-//정점 쉐이더를 정의한다.
-VS_OUTPUT VSDiffused( VS_INPUT input )
+float4 DirectionalLight(int nIndex, float3 vNormal, float3 vToCamera)
 {
-    VS_OUTPUT output;
+    float3 vToLight = -gLights[nIndex].m_vDirection;
+    float fDiffuseFactor = dot(vToLight, vNormal);
+    float fSpecularFactor = 0.0f;
+    if (fDiffuseFactor > 0.0f)
+    {
+        if (gMaterials[gnMaterial].m_cSpecular.a != 0.0f)
+        {
+#ifdef _WITH_REFLECT
+    float3 vReflect = reflect(-vToLight, vNormal);
+    fSpecularFactor = pow(max(dot(vReflect, vToCamera), 0.0f), gMaterials[gnMaterial].m_cSpecular.a);
+#else
+#ifdef _WITH_LOCAL_VIEWER_HIGHLIGHTING
+            float3 vHalf = normalize(vToCamera + vToLight);
+#else
+        float3 vHalf = float3(0.0f, 1.0f, 0.0f);
+#endif
+            fSpecularFactor = pow(max(dot(vHalf, vNormal), 0.0f), gMaterials[gnMaterial].m_cSpecular.a);
+#endif
+        }
+    }
+    return (gLights[nIndex].m_cAmbient * gMaterials[gnMaterial].m_cAmbient) +
+           (gLights[nIndex].m_cDiffuse * fDiffuseFactor * gMaterials[gnMaterial].m_cDiffuse) +
+           (gLights[nIndex].m_cSpecular * fSpecularFactor * gMaterials[gnMaterial].m_cSpecular);
+}
+
+
+float4 PointLight(int nIndex, float3 vPosition, float3 vNormal, float3 vToCamera)
+{
+    float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
+    float fDistance = length(vToLight);
+    if (fDistance <= gLights[nIndex].m_fRange)
+    {
+        float fSpecularFactor = 0.0f;
+        vToLight /= fDistance;
+        float fDiffuseFactor = dot(vToLight, vNormal);
+        
+        if (fDiffuseFactor > 0.0f)
+        {
+            if (gMaterials[gnMaterial].m_cSpecular.a != 0.0f)
+            {
+#ifdef _WITH_REFLECT
+    float3 vReflect = reflect(-vToLight, vNormal);
+    fSpecularFactor = pow(max(dot(vReflect, vToCamera), 0.0f),
+    gMaterials[gnMaterial].m_cSpecular.a);
+#else
+#ifdef _WITH_LOCAL_VIEWER_HIGHLIGHTING
+                float3 vHalf = normalize(vToCamera + vToLight);
+#else
+        float3 vHalf = float3(0.0f, 1.0f, 0.0f);
+#endif
+                fSpecularFactor = pow(max(dot(vHalf, vNormal), 0.0f), gMaterials[gnMaterial].m_cSpecular.a);
+#endif
+            }
+        }
+        float fAttenuationFactor = 1.0f / dot(gLights[nIndex].m_vAttenuation, float3(1.0f, fDistance, fDistance * fDistance));
+        
+        return ((gLights[nIndex].m_cAmbient * gMaterials[gnMaterial].m_cAmbient) +
+                (gLights[nIndex].m_cDiffuse * fDiffuseFactor * gMaterials[gnMaterial].m_cDiffuse) +
+                (gLights[nIndex].m_cSpecular * fSpecularFactor * gMaterials[gnMaterial].m_cSpecular))
+                * fAttenuationFactor;
+    }
     
-    //정점을 변환한다.
-    output.position = mul(mul(mul(float4(input.position, 1.0f), gmtxWorld), gmtxView), gmtxProjection);
+    return float4(0.0f, 0.0f, 0.0f, 0.0f);
+}
+
+
+float4 SpotLight(int nIndex, float3 vPosition, float3 vNormal, float3 vToCamera)
+{
+    float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
+    float fDistance = length(vToLight);
+    if (fDistance <= gLights[nIndex].m_fRange)
+    {
+        float fSpecularFactor = 0.0f;
+        vToLight /= fDistance;
+        float fDiffuseFactor = dot(vToLight, vNormal);
+        if (fDiffuseFactor > 0.0f)
+        {
+            if (gMaterials[gnMaterial].m_cSpecular.a != 0.0f)
+            {
+#ifdef _WITH_REFLECT
+    float3 vReflect = reflect(-vToLight, vNormal);
+    fSpecularFactor = pow(max(dot(vReflect, vToCamera), 0.0f),
+    gMaterials[gnMaterial].m_cSpecular.a);
+#else
+#ifdef _WITH_LOCAL_VIEWER_HIGHLIGHTING
+                float3 vHalf = normalize(vToCamera + vToLight);
+#else
+        float3 vHalf = float3(0.0f, 1.0f, 0.0f);
+#endif
+                fSpecularFactor = pow(max(dot(vHalf, vNormal), 0.0f), gMaterials[gnMaterial].m_cSpecular.a);
+#endif
+            }
+        }
+#ifdef _WITH_THETA_PHI_CONES
+        float fAlpha = max(dot(-vToLight, gLights[nIndex].m_vDirection), 0.0f);
+        float fSpotFactor = pow(max(((fAlpha - gLights[nIndex].m_fPhi) / (gLights[nIndex].m_fTheta - gLights[nIndex].m_fPhi)), 0.0f), gLights[nIndex].m_fFalloff);
+#else
+    float fSpotFactor = pow(max(dot(-vToLight, gLights[i].m_vDirection), 0.0f),
+    gLights[i].m_fFalloff);
+#endif
+        float fAttenuationFactor = 1.0f / dot(gLights[nIndex].m_vAttenuation, float3(1.0f, fDistance, fDistance * fDistance));
+        return ((gLights[nIndex].m_cAmbient * gMaterials[gnMaterial].m_cAmbient) +
+            (gLights[nIndex].m_cDiffuse * fDiffuseFactor * gMaterials[gnMaterial].m_cDiffuse) +
+            (gLights[nIndex].m_cSpecular * fSpecularFactor * gMaterials[gnMaterial].m_cSpecular)) *
+            fAttenuationFactor * fSpotFactor;
+    }
+    
+    return float4(0.0f, 0.0f, 0.0f, 0.0f);
+}
+
+
+float4 Lighting(float3 vPosition, float3 vNormal)
+{
+    float3 vCameraPosition = float3(gvCameraPosition.x, gvCameraPosition.y, gvCameraPosition.z);
+    float3 vToCamera = normalize(vCameraPosition - vPosition);
+    float4 cColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    
+    for (int i = 0; i < MAX_LIGHTS; i++)
+    {
+        if (gLights[i].m_bEnable)
+        {
+            if (gLights[i].m_nType == DIRECTIONAL_LIGHT)
+            {
+                cColor += DirectionalLight(i, vNormal, vToCamera);
+            }
+            else if (gLights[i].m_nType == POINT_LIGHT)
+            {
+                cColor += PointLight(i, vPosition, vNormal, vToCamera);
+            }
+            else if (gLights[i].m_nType == SPOT_LIGHT)
+            {
+                cColor += SpotLight(i, vPosition, vNormal, vToCamera);
+            }
+        }
+    }
+    
+    cColor += (gcGlobalAmbientLight * gMaterials[gnMaterial].m_cAmbient);
+    cColor.a = gMaterials[gnMaterial].m_cDiffuse.a;
+    return (cColor);
+}
+
+VS_DIFFUSED_OUTPUT VSPlayer(VS_DIFFUSED_INPUT input)
+{
+    VS_DIFFUSED_OUTPUT output;
+    output.position = mul(mul(mul(float4(input.position, 1.0f), gmtxPlayerWorld), gmtxView), gmtxProjection);
     output.color = input.color;
     
     return output;
 }
 
-//픽셀 셰이더를 정의한다.
-float4 PSDiffused(VS_OUTPUT input) : SV_Target
+float4 PSPlayer(VS_DIFFUSED_OUTPUT input) : SV_Target
 {
-    //입력되는 픽셀 색상을 그대로 OM으로 출력
     return input.color;
 }
 
+//정점 조명을 사용
+#define _WITH_VERTEX_LIGHTING
 
+//정점 쉐이더의 입력 정점 구조
+struct VS_LIGHTING_INPUT
+{
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+};
 
+//정점 쉐이더의 출력 정점 구조
+struct VS_LIGHTING_OUTPUT
+{
+    float4 position : SV_POSITION;
+    float3 positionW : POSITION;
+    
+#ifdef _WITH_VERTEX_LIGHTING
+    float4 color : COLOR;
+#else
+    float3 normalW : NORMAL;
+#endif
+};
+
+//정점 쉐이더 함수
+VS_LIGHTING_OUTPUT VSLighting(VS_LIGHTING_INPUT input)
+{
+    VS_LIGHTING_OUTPUT output;
+    
+    output.positionW = (float3) mul(float4(input.position, 1.0f), gmtxGameObject);
+    output.position = mul(mul(mul(float4(input.position, 1.0f), gmtxGameObject), gmtxView), gmtxProjection);
+    float3 normalW = mul(input.normal, (float3x3)gmtxGameObject);
+#ifdef _WITH_VERTEX_LIGHTING
+    output.color = Lighting(output.positionW, normalize(normalW));
+#else
+    output.normalW = normalW;
+#endif
+    return output;
+}
+
+//픽셀 쉐이더 함수
+float4 PSLighting(VS_LIGHTING_OUTPUT input) : SV_TARGET
+{
+#ifdef _WITH_VERTEX_LIGHTING
+    return input.color;
+#else
+    float3 normalW = normalize(input.normalW);
+    float4 color = PSLighting(input.positionW, normalW);
+    return color;
+#endif
+}
 
 
 /*

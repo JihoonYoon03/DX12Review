@@ -5,6 +5,33 @@
 class CShader;
 class CCamera;
 
+struct MATERIAL
+{
+	XMFLOAT4	m_xmf4Ambient;
+	XMFLOAT4	m_xmf4Diffuse;
+	XMFLOAT4	m_xmf4Specular; //(r, g, b, a = power)
+	XMFLOAT4	m_xmf4Emissive;
+};
+
+class CMaterial
+{
+public:
+	CMaterial();
+	virtual ~CMaterial();
+
+	//재질의 기본 색상
+	XMFLOAT4					m_xmf4Albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	//재질의 번호
+	UINT						m_nReflection = 0;
+	//재질을 적용해 렌더링 하기위한 쉐이더
+	std::shared_ptr<CShader>	m_pShader;
+
+	void SetAlbedo(XMFLOAT4& xmf4Albedo) { m_xmf4Albedo = xmf4Albedo; }
+	void SetReflection(UINT nReflection) { m_nReflection = nReflection; }
+	void SetShader(const std::shared_ptr<CShader>& pShader);
+};
+
 class CGameObject
 {
 public:
@@ -16,6 +43,8 @@ public:
 	virtual void SetMesh(const std::shared_ptr<CMesh>& pMesh);
 	virtual void SetMesh(std::shared_ptr<CMesh>&& pMesh);
 	virtual void SetShader(const std::shared_ptr<CShader>& pShader);
+	void SetMaterial(std::shared_ptr<CMaterial>& pMaterial);
+	void SetMaterial(UINT nReflection);
 
 	void Rotate(XMFLOAT3* pxmf3Axis, float fAngle);
 
@@ -35,6 +64,8 @@ public:
 	XMFLOAT3 GetLook();
 	XMFLOAT3 GetUp();
 	XMFLOAT3 GetRight();
+	const XMFLOAT4X4& GetWorldMatrix() { return m_xmf4x4World; }
+	std::shared_ptr<CMaterial>& GetMaterial() { return m_pMaterial; }
 
 	//게임 객체의 위치를 설정한다.
 	void SetPosition(float x, float y, float z);
@@ -51,9 +82,10 @@ public:
 protected:
 	XMFLOAT4X4 m_xmf4x4World;
 
-	std::shared_ptr<CMesh> m_pMesh = NULL;
+	std::shared_ptr<CMesh> m_pMesh;
 
-	std::shared_ptr<CShader> m_pShader = NULL;
+	//std::shared_ptr<CShader> m_pShader;
+	std::shared_ptr<CMaterial> m_pMaterial;
 };
 
 class CRotatingObject : public CGameObject

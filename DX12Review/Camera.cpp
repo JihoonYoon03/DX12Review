@@ -59,6 +59,7 @@ void CCamera::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsComm
 
 void CCamera::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
+	//수정 필요
 	XMFLOAT4X4 xmf4x4View;
 	XMStoreFloat4x4(&xmf4x4View, XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4View)));
 	//루트 파라미터 인덱스 1

@@ -4,6 +4,34 @@
 #include "Camera.h"
 #include "Player.h"
 
+
+
+//================================================================================================
+//================================================================================================
+//================================================================================================
+CMaterial::CMaterial()
+{
+	m_xmf4Albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
+CMaterial::~CMaterial()
+{
+	if (m_pShader) {
+		m_pShader->ReleaseShaderVariables();
+		m_pShader = nullptr;
+	}
+}
+
+void CMaterial::SetShader(const std::shared_ptr<CShader>& pShader)
+{
+	m_pShader = pShader;
+}
+
+
+
+//================================================================================================
+//================================================================================================
+//================================================================================================
 CGameObject::CGameObject()
 {
 	XMStoreFloat4x4(&m_xmf4x4World, XMMatrixIdentity());
@@ -12,18 +40,34 @@ CGameObject::CGameObject()
 CGameObject::~CGameObject()
 {
 	//if(m_pMesh) m_pMesh->Release();
-	if (m_pShader)
-	{
-		m_pShader->ReleaseShaderVariables();
-		//m_pShader->Release();
-	}
+	//if (m_pShader)
+	//{
+	//	m_pShader->ReleaseShaderVariables();
+	//	//m_pShader->Release();
+	//}
+	m_pMaterial = nullptr;
 }
 
 void CGameObject::SetShader(const std::shared_ptr<CShader>& pShader)
 {
 	//if (m_pShader) m_pShader->Release();
-	m_pShader = pShader;
+	if (!m_pMaterial)
+	{
+		m_pMaterial = std::make_shared<CMaterial>();
+	}
+	if (m_pMaterial) m_pMaterial->SetShader(pShader);
 	//if (m_pShader) m_pShader->AddRef();
+}
+
+void CGameObject::SetMaterial(std::shared_ptr<CMaterial>& pMaterial)
+{
+	m_pMaterial = pMaterial;
+}
+
+void CGameObject::SetMaterial(UINT nReflection)
+{
+	if (!m_pMaterial) m_pMaterial = std::make_shared<CMaterial>();
+	m_pMaterial->m_nReflection = nReflection;
 }
 
 void CGameObject::Rotate(XMFLOAT3* pxmf3Axis, float fAngle)
@@ -62,11 +106,16 @@ void CGameObject::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pC
 {
 	OnPrepareRender();
 
-	UpdateShaderVariables(pd3dCommandList);
+	if (m_pMaterial)
+	{
+		if (m_pMaterial->m_pShader)
+		{
+			m_pMaterial->m_pShader->Render(pd3dCommandList, pCamera);
+			m_pMaterial->m_pShader->UpdateShaderVariable(pd3dCommandList, &m_xmf4x4World);
+		}
+	}
 
-	if (m_pShader.get()) m_pShader->Render(pd3dCommandList, pCamera);
-
-	if (m_pMesh.get()) m_pMesh->Render(pd3dCommandList);
+	if (m_pMesh) m_pMesh->Render(pd3dCommandList);
 }
 
 void CGameObject::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
@@ -78,6 +127,7 @@ void CGameObject::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandLi
 	XMFLOAT4X4 xmf4x4World;
 	XMStoreFloat4x4(&xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World)));
 	//객체의 월드 변환 행렬을 루트 상수(32비트 값)를 통하여 셰이더 변수(상수 버퍼)로 복사한다.
+	//수정 필요
 	pd3dCommandList->SetGraphicsRoot32BitConstants(0, 16, &xmf4x4World, 0);
 }
 
@@ -146,6 +196,8 @@ void CGameObject::Rotate(float fPitch, float fYaw, float fRoll)
 	XMMATRIX mtxRotate = XMMatrixRotationRollPitchYaw(XMConvertToRadians(fPitch), XMConvertToRadians(fYaw), XMConvertToRadians(fRoll));
 	m_xmf4x4World = Matrix4x4::Multiply(mtxRotate, m_xmf4x4World);
 }
+
+
 
 //================================================================================================
 //================================================================================================

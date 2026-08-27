@@ -334,7 +334,7 @@ void CGameFramework::BuildObjects()
 	m_pScene->BuildObjects(m_pd3dDevice.Get(), m_pd3dCmdList.Get());
 
 	std::shared_ptr<CAirplanePlayer> pAirplanePlayer = std::make_shared<CAirplanePlayer>(m_pd3dDevice.Get(), m_pd3dCmdList.Get(), m_pScene->GetGraphicsrootSignature());
-	m_pPlayer = pAirplanePlayer;
+	m_pScene->m_pPlayer = m_pPlayer = pAirplanePlayer;
 	m_pCamera = m_pPlayer->GetCamera();
 
 	//씬 객체를 생성하기 위하여 필요한 그래픽 명령 리스트들을 명령 큐에 추가한다.
@@ -347,6 +347,7 @@ void CGameFramework::BuildObjects()
 
 	//그래픽 리소스들을 생성하는 과정에 생성된 업로드 버퍼들을 소멸시킨다.
 	if (m_pScene) m_pScene->ReleaseUploadBuffers();
+	if (m_pPlayer) m_pPlayer->ReleaseUploadBuffers();
 
 	m_GameTimer.Reset();
 }
