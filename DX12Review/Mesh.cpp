@@ -415,7 +415,7 @@ CSphereMeshDiffused::CSphereMeshDiffused(ID3D12Device* pd3dDevice, ID3D12Graphic
 {
 	/*nSlices는 구를 xz-평면에 평행하게 몇 등분할 것인 가를 나타낸다. nStacks은 원기둥을 몇 조각으로 자를 것인가를 나타낸다.*/
 	m_nStride = sizeof(CDiffusedVertex);
-	m_d3dPrimitiveTopology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	m_d3dPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	
 	/*원기둥의 표면에 있는 사각형(줄)의 개수는 {nSlices * (nStacks-2)}이다.
 	사각형들이 원기둥의 표면을 따라 연속되고 처음과 마지막 사각형이 연결되어 있으므로 첫 번째 원기둥을 제외하고 사각형 하나를 표현하기 위하여 하나의 정점이 필요하다.
