@@ -79,6 +79,10 @@ public:
 	//게임 객체를 회전(x, y, z)한다
 	void Rotate(float fPitch = 10.0f, float fYaw = 10.0f, float fRoll = 10.0f);
 
+	D3D12_GPU_DESCRIPTOR_HANDLE	m_d3dCbvGPUDescriptorHandle;
+	void SetCbvGPUDescriptorHandle(UINT64 nCbvGPUDescriptorHandlePtr) {	m_d3dCbvGPUDescriptorHandle.ptr = nCbvGPUDescriptorHandlePtr; }
+	D3D12_GPU_DESCRIPTOR_HANDLE GetCbvGPUDescriptorHandle() { return m_d3dCbvGPUDescriptorHandle; }
+
 protected:
 	XMFLOAT4X4 m_xmf4x4World;
 

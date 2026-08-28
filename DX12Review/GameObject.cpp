@@ -115,6 +115,8 @@ void CGameObject::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pC
 		}
 	}
 
+	pd3dCommandList->SetGraphicsRootDescriptorTable(2, m_d3dCbvGPUDescriptorHandle);
+
 	if (m_pMesh) m_pMesh->Render(pd3dCommandList);
 }
 

@@ -84,7 +84,8 @@ public:
 	CObjectsShader();
 	virtual ~CObjectsShader();
 
-	virtual void BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
+	virtual void BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList,
+		D3D12_CPU_DESCRIPTOR_HANDLE d3dCbvCPUDescriptorStartHandle, D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorStartHandle);
 	virtual void AnimateObjects(float fTimeElapsed);
 	virtual void ReleaseObjects();
 
@@ -98,7 +99,8 @@ public:
 
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera);
 
-	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
+	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList,
+		D3D12_CPU_DESCRIPTOR_HANDLE d3dCbvCPUDescriptorStartHandle, D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorStartHandle);
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList);
 	virtual void ReleaseShaderVariables();
 
@@ -108,4 +110,6 @@ protected:
 	//쉐이더 객체에 포함되어 있는 모든 게임 객체들에 대한 리소스와 리소스 포인터
 	ComPtr<ID3D12Resource>		m_pd3dcbGameObjects;
 	UINT8*						m_pcbMappedGameObjects = nullptr;
+
+	ComPtr<ID3D12DescriptorHeap>	m_pd3dCbvSrvDescriptorHeap;
 };

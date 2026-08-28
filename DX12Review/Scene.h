@@ -93,4 +93,13 @@ protected:
 	//재질을 나타내는 리소스와 리소스에 대한 포인터이다.
 	ComPtr<ID3D12Resource>		m_pd3dcbMaterials;
 	MATERIALS*					m_pcbMappedMaterials;
+
+	ComPtr<ID3D12DescriptorHeap>	m_pd3dCbvSrvDescriptorHeap;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE		m_d3dObjectsCbvCPUDescriptorHandle;
+	D3D12_GPU_DESCRIPTOR_HANDLE		m_d3dObjectsCbvGPUDescriptorHandle;
+	D3D12_CPU_DESCRIPTOR_HANDLE		m_d3dLightsCbvCPUDescriptorHandle;
+	D3D12_GPU_DESCRIPTOR_HANDLE		m_d3dLightsCbvGPUDescriptorHandle;
+	D3D12_CPU_DESCRIPTOR_HANDLE		m_d3dMaterialsCbvCPUDescriptorHandle;
+	D3D12_GPU_DESCRIPTOR_HANDLE		m_d3dMaterialsCbvGPUDescriptorHandle;
 };

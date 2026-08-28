@@ -218,6 +218,8 @@ void CGameFramework::CreateD3DDevice()
 		OutputDebugString(L"Fence Creation Failed\n");
 	}
 
+	gnCbvSrvDescriptorIncrementSize = m_pd3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
 	//펜스 동기화를 위한 이벤트 객체 생성. 초기값 FALSE, 이벤트 실행 시 이벤트 값을 자동 FALSE로 설정.
 	m_hFenceEvent = ::CreateEvent(NULL, FALSE, FALSE, NULL);
 }

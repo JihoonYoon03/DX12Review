@@ -312,7 +312,8 @@ void CObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature*
 	CShader::CreateShader(pd3dDevice, pd3dGraphicsRootSignature);
 }
 
-void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList,
+	D3D12_CPU_DESCRIPTOR_HANDLE d3dCbvCPUDescriptorStartHandle, D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorStartHandle)
 {
 	//가로*세로*높이가 12*12*12인 정육면체 메쉬를 생성
 	std::shared_ptr<CCubeMeshIlluminated> pCubeMesh = std::make_shared<CCubeMeshIlluminated>(pd3dDevice, pd3dCommandList, 12.0f, 12.0f, 12.0f);
@@ -340,12 +341,14 @@ void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsComman
 				pRotatingObject->SetPosition(fxPitch * x, fyPitch * y, fzPitch * z);
 				pRotatingObject->SetRotationAxis(XMFLOAT3(0.0f, 1.0f, 0.0f));
 				pRotatingObject->SetRotationSpeed(10.0f * (i % 10));
+				pRotatingObject->SetCbvGPUDescriptorHandle(d3dCbvGPUDescriptorStartHandle.ptr + (::gnCbvSrvDescriptorIncrementSize * i));
 				m_vpObjects.push_back(pRotatingObject);
+				++i;
 			}
 		}
 	}
 
-	CreateShaderVariables(pd3dDevice, pd3dCommandList);
+	CreateShaderVariables(pd3dDevice, pd3dCommandList, d3dCbvCPUDescriptorStartHandle, d3dCbvGPUDescriptorStartHandle);
 }
 
 void CObjectsShader::ReleaseObjects()
@@ -378,19 +381,32 @@ void CObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera*
 
 	int j = 0;
 	for (std::shared_ptr<CGameObject>& object : m_vpObjects) {
-		pd3dCommandList->SetGraphicsRootConstantBufferView(2, d3dcbGameObjectGpuVirtualAddress + (ncbGameObjectBytes * j));
+		//pd3dCommandList->SetGraphicsRootConstantBufferView(2, d3dcbGameObjectGpuVirtualAddress + (ncbGameObjectBytes * j));
 		object->Render(pd3dCommandList, pCamera);
 		++j;
 	}
 }
 
 //객체 정보를 저장하기 위한 리소스를 생성, 그 포인터를 가져온다
-void CObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+void CObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList,
+	D3D12_CPU_DESCRIPTOR_HANDLE d3dCbvCPUDescriptorStartHandle, D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorStartHandle)
 {
 	UINT ncbGameObjectBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);	//256의 배수
 	m_pd3dcbGameObjects = ::CreateBufferResource(pd3dDevice, pd3dCommandList, NULL, ncbGameObjectBytes * m_vpObjects.size(), D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, NULL);
 
 	m_pd3dcbGameObjects->Map(0, NULL, (void**)&m_pcbMappedGameObjects);
+
+	D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress = m_pd3dcbGameObjects->GetGPUVirtualAddress();
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC d3dcbvDesc;
+	d3dcbvDesc.SizeInBytes = ncbGameObjectBytes;
+	for (int j = 0; j < m_vpObjects.size(); ++j)
+	{
+		d3dcbvDesc.BufferLocation = d3dGpuVirtualAddress + (ncbGameObjectBytes * j);
+		D3D12_CPU_DESCRIPTOR_HANDLE d3dCbvCPUDescriptorHandle;
+		d3dCbvCPUDescriptorHandle.ptr = d3dCbvCPUDescriptorStartHandle.ptr + (::gnCbvSrvDescriptorIncrementSize * j);
+		pd3dDevice->CreateConstantBufferView(&d3dcbvDesc, d3dCbvCPUDescriptorHandle);
+	}
 }
 
 //객체의 월드변환 행렬과 재질 번호를 상수 버퍼에 쓴다.
