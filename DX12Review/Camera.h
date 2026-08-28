@@ -16,6 +16,14 @@ struct VS_CB_CAMERA_INFO
 	XMFLOAT4X4 m_xmf4x4Projection;
 };
 
+struct CAMERA
+{
+	XMFLOAT4X4	m_xmf4x4View;
+	XMFLOAT4X4	m_xmf4x4Projection;
+	XMFLOAT3	m_xmf3CameraPosition;
+	float		padding;
+};
+
 class CCamera
 {
 public:
@@ -83,6 +91,10 @@ public:
 	virtual void SetLookAt(XMFLOAT3 xmf3LookAt) {}
 
 protected:
+	//카메라 변환 행렬
+	XMFLOAT4X4		m_xmf4x4View;
+	//투영 변환 행렬
+	XMFLOAT4X4		m_xmf4x4Projection;
 	//카메라 위치 벡터
 	XMFLOAT3		m_xmf3Position;
 
@@ -106,17 +118,16 @@ protected:
 	//플레이어가 회전할 때 얼마만큼의 시간 지연 후 회전시킬 것인가(Camera Lag)
 	float			m_fTimeLag;
 
-	//카메라 변환 행렬
-	XMFLOAT4X4		m_xmf4x4View;
-	//투영 변환 행렬
-	XMFLOAT4X4		m_xmf4x4Projection;
-
 	//뷰포트와 씨저 사각형
 	D3D12_VIEWPORT	m_d3dViewport;
 	D3D12_RECT		m_d3dScissorRect;
 
 	//카메라를 갖는 플레이어에 대한 포인터
 	CPlayer*		m_pPlayer;
+
+	//카메라 상수 버퍼뷰가 가리키는 리소스와 그 포인터
+	ComPtr<ID3D12Resource>	m_pd3dcbCamera;
+	CAMERA*					m_pcbMappedCamera;
 };
 
 class CSpaceShipCamera : public CCamera

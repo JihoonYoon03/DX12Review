@@ -263,11 +263,11 @@ void CScene::ReleaseShaderVariables()
 	if (m_pd3dcbLights)
 	{
 		m_pd3dcbLights->Unmap(0, NULL);
-		m_pd3dcbLights->Release();
+		m_pd3dcbLights.Reset();
 	}
 	if (m_pd3dcbMaterials)
 	{
 		m_pd3dcbMaterials->Unmap(0, NULL);
-		m_pd3dcbMaterials->Release();
+		m_pd3dcbMaterials.Reset();
 	}
 }

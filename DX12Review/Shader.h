@@ -107,5 +107,5 @@ protected:
 
 	//쉐이더 객체에 포함되어 있는 모든 게임 객체들에 대한 리소스와 리소스 포인터
 	ComPtr<ID3D12Resource>		m_pd3dcbGameObjects;
-	UINT*						m_pcbMappedGameObjects = nullptr;
+	UINT8*						m_pcbMappedGameObjects = nullptr;
 };

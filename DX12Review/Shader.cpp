@@ -248,7 +248,7 @@ void CPlayerShader::ReleaseShaderVariables()
 	if (m_pd3dcbPlayer)
 	{
 		m_pd3dcbPlayer->Unmap(0, NULL);
-		m_pd3dcbPlayer->Release();
+		m_pd3dcbPlayer.Reset();
 	}
 }
 
@@ -387,7 +387,7 @@ void CObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera*
 //객체 정보를 저장하기 위한 리소스를 생성, 그 포인터를 가져온다
 void CObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	UINT ncbGameObjectBytes = ((sizeof(CB_PLAYER_INFO) + 255) & ~255);	//256의 배수
+	UINT ncbGameObjectBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);	//256의 배수
 	m_pd3dcbGameObjects = ::CreateBufferResource(pd3dDevice, pd3dCommandList, NULL, ncbGameObjectBytes * m_vpObjects.size(), D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, NULL);
 
 	m_pd3dcbGameObjects->Map(0, NULL, (void**)&m_pcbMappedGameObjects);
@@ -396,15 +396,14 @@ void CObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12Graph
 //객체의 월드변환 행렬과 재질 번호를 상수 버퍼에 쓴다.
 void CObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	UINT ncbGameObjectBytes = ((sizeof(CB_PLAYER_INFO) + 255) & ~255);	//256의 배수
+	UINT ncbGameObjectBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);	//256의 배수
 	XMFLOAT4X4 xmf4x4World;
-	int j = 0;
-	for (std::shared_ptr<CGameObject>& object : m_vpObjects) {
-		XMStoreFloat4x4(&xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&object->GetWorldMatrix())));
+	for (int j = 0; j < m_vpObjects.size(); j++)
+	{
+		XMStoreFloat4x4(&xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_vpObjects[j]->GetWorldMatrix())));
 		CB_GAMEOBJECT_INFO* pbMappedcbGameObject = (CB_GAMEOBJECT_INFO*)(m_pcbMappedGameObjects + (j * ncbGameObjectBytes));
 		::memcpy(&pbMappedcbGameObject->m_xmf4x4World, &xmf4x4World, sizeof(XMFLOAT4X4));
-		pbMappedcbGameObject->m_nMaterial = object->GetMaterial()->m_nReflection;
-		j++;
+		pbMappedcbGameObject->m_nMaterial = m_vpObjects[j]->GetMaterial()->m_nReflection;
 	}
 }
 
@@ -413,6 +412,6 @@ void CObjectsShader::ReleaseShaderVariables()
 	if (m_pd3dcbGameObjects)
 	{
 		m_pd3dcbGameObjects->Unmap(0, NULL);
-		m_pd3dcbGameObjects->Release();
+		m_pd3dcbGameObjects.Reset();
 	}
 }
