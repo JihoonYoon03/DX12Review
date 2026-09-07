@@ -1,4 +1,6 @@
 #include "pch.h"
+#include "DDSTextureLoader12.h"
+#include "d3dx12.h"
 
 UINT gnCbvSrvDescriptorIncrementSize = 0;
 
@@ -101,4 +103,56 @@ ID3D12Resource* CreateBufferResource(ID3D12Device* pd3dDevice, ID3D12GraphicsCom
     }
 
     return pd3dBuffer;
+}
+
+ID3D12Resource* CreateTextureResourceFromDDSFile(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, wchar_t* wsFileName, ID3D12Resource** ppd3dUploadBuffer, D3D12_RESOURCE_STATES d3dResourceStates)
+{
+    ID3D12Resource* cpTexture = NULL;
+    std::unique_ptr<uint8_t[]> ddsData;
+    std::vector<D3D12_SUBRESOURCE_DATA> vSubresources;
+    DDS_ALPHA_MODE ddsAlphaMode = DDS_ALPHA_MODE_UNKNOWN;
+    bool bIsCubeMap = false;
+
+    HRESULT hr = DirectX::LoadDDSTextureFromFileEx(pd3dDevice, wsFileName, 0, D3D12_RESOURCE_FLAG_NONE, DDS_LOADER_DEFAULT, &cpTexture, ddsData, vSubresources, &ddsAlphaMode, &bIsCubeMap);
+
+    D3D12_HEAP_PROPERTIES HeapProperties;
+    ::ZeroMemory(&HeapProperties, sizeof(D3D12_HEAP_PROPERTIES));
+    HeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
+    HeapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    HeapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    HeapProperties.CreationNodeMask = 1;
+    HeapProperties.VisibleNodeMask = 1;
+
+    UINT nSubResources = (UINT)vSubresources.size();
+    UINT64 nBytes = GetRequiredIntermediateSize(cpTexture, 0, nSubResources);
+
+    D3D12_RESOURCE_DESC ResourceDesc;
+    ::ZeroMemory(&ResourceDesc, sizeof(D3D12_RESOURCE_DESC));
+    ResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;   // 업로드 힙에는 텍스쳐 생성 불가
+    ResourceDesc.Alignment = 0;
+    ResourceDesc.Width = nBytes;
+    ResourceDesc.Height = 1;
+    ResourceDesc.DepthOrArraySize = 1;
+    ResourceDesc.MipLevels = 1;
+    ResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+    ResourceDesc.SampleDesc.Count = 1;
+    ResourceDesc.SampleDesc.Quality = 0;
+    ResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    ResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    pd3dDevice->CreateCommittedResource(&HeapProperties, D3D12_HEAP_FLAG_NONE, &ResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(ppd3dUploadBuffer));
+
+    ::UpdateSubresources(pd3dCommandList, cpTexture, *ppd3dUploadBuffer, 0, 0, nSubResources, &vSubresources[0]);
+
+    D3D12_RESOURCE_BARRIER ResourceBarrier;
+    ::ZeroMemory(&ResourceBarrier, sizeof(D3D12_RESOURCE_BARRIER));
+    ResourceBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    ResourceBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    ResourceBarrier.Transition.pResource = cpTexture;
+    ResourceBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+    ResourceBarrier.Transition.StateAfter = d3dResourceStates;
+    ResourceBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    pd3dCommandList->ResourceBarrier(1, &ResourceBarrier);
+
+    return cpTexture;
 }

@@ -136,6 +136,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="d3dx12.h" />
+    <ClInclude Include="DDSTextureLoader12.h" />
     <ClInclude Include="DX12Review.h" />
     <ClInclude Include="GameFramework.h" />
     <ClInclude Include="GameObject.h" />
@@ -157,6 +159,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="DDSTextureLoader12.cpp" />
     <ClCompile Include="DX12Review.cpp" />
     <ClCompile Include="GameFramework.cpp" />
     <ClCompile Include="GameObject.cpp" />
